@@ -128,12 +128,12 @@ def test_module_level_variables():
     """Test that module-level variables are accessible and correct."""
     # Import the module to access module-level variables
     import main
-    
+
     # Test __version__
     assert hasattr(main, "__version__")
     assert main.__version__ == "1.0.0"
     assert isinstance(main.__version__, str)
-    
+
     # Test __author__
     assert hasattr(main, "__author__")
     assert main.__author__ == "Ornakala Team"
@@ -144,19 +144,19 @@ def test_main_script_execution_block():
     """Test the if __name__ == '__main__' block execution."""
     import subprocess
     import sys
-    
+
     # Run the main.py script as a subprocess to test the __main__ block
     result = subprocess.run(
-        [sys.executable, "main.py"], 
-        capture_output=True, 
+        [sys.executable, "main.py"],
+        capture_output=True,
         text=True,
         cwd=".",
         check=False
     )
-    
+
     # Check that the script ran successfully
     assert result.returncode == 0, f"Script failed with error: {result.stderr}"
-    
+
     # Check that the output contains expected content
     output = result.stdout
     assert "Starting Ornakala Backend" in output
@@ -170,46 +170,45 @@ def test_main_execution_directly():
     with patch("builtins.print") as mock_print:
         from main import main
         main()
-        
+
         # Verify that print was called with expected content
         assert mock_print.call_count == 2
         calls = [call.args[0] for call in mock_print.call_args_list]
-        
+
         assert any("Starting Ornakala Backend v1.0.0" in call for call in calls)
         assert any("Status: development" in call for call in calls)
 
 
 def test_main_as_script_execution():
     """Test the __main__ block by simulating script execution."""
-    # Import the coverage module to track this execution
+    import contextlib
+    import io
+
     import coverage
-    
-    # Create a coverage instance 
+
+    # Create a coverage instance
     cov = coverage.Coverage(source=["main"])
     cov.start()
-    
+
     try:
         # Execute the main.py file as __main__ using exec
-        with open("main.py", "r") as f:
+        with open("main.py") as f:
             code = compile(f.read(), "main.py", "exec")
-        
+
         # Create namespace that simulates running as __main__
         namespace = {"__name__": "__main__"}
-        
+
         # Capture stdout
-        import io
-        import contextlib
-        
         stdout_buffer = io.StringIO()
         with contextlib.redirect_stdout(stdout_buffer):
             exec(code, namespace)
-        
+
         output = stdout_buffer.getvalue()
-        
+
         # Verify the expected output
         assert "Starting Ornakala Backend v1.0.0" in output
         assert "Status: development" in output
-        
+
     finally:
         cov.stop()
         cov.save()
@@ -219,7 +218,8 @@ def test_version_in_get_app_info():
     """Test that get_app_info uses the module-level __version__."""
     import main
     app_info = get_app_info()
-    
+
     # Verify that the version in app_info matches the module-level __version__
     assert app_info["version"] == main.__version__
     assert app_info["version"] == "1.0.0"
+
