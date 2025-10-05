@@ -1,0 +1,47 @@
+# Basic requirements for the Ornakala Backend
+# Web framework
+fastapi==0.104.0
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.21
+alembic==1.12.0
+psycopg2-binary==2.9.7  # PostgreSQL adapter
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Environment management
+python-dotenv==1.0.0
+
+# HTTP requests
+httpx==0.25.0
+requests==2.31.0
+
+# Data validation
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+# Async support
+asyncio-mqtt==0.13.0
+
+# Logging
+structlog==23.1.0
+
+# Image processing (for jewelry photos)
+pillow==10.0.1
+
+# Date/time handling
+python-dateutil==2.8.2
+
+# Redis (for caching)
+redis==5.0.1
+
+# Background tasks
+celery==5.3.4
+
+# AWS SDK (for S3 storage)
+boto3==1.29.7
+botocore==1.32.7
