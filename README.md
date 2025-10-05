@@ -16,8 +16,6 @@ It manages:
 - 🛒 Cart, checkout, and order tracking  
 - 🔔 Notifications and order status updates  
 
-Vendor and production-side APIs are maintained separately in the [`ornakala-vendor-backend`](https://github.com/ornakala/ornakala-vendor-backend) repository.
-
 ---
 
 ## 🧱 Tech Stack
