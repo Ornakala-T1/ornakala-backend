@@ -1,9 +1,10 @@
 name: SonarQube Analysis
 
 on:
-  # Trigger on push to feature branches and pull requests
+  # Trigger on push to main and feature branches, and pull requests
   push:
     branches:
+      - main
       - 'feature/**'
   pull_request:
     branches:
@@ -79,12 +80,12 @@ jobs:
           # Check if tests directory exists and has test files
           if [ -d "tests" ] && find tests -name "test_*.py" | head -1 | grep -q .; then
             echo "Found tests in tests/ directory"
-            echo "Running pytest with coverage..."
-            pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-report=term --cov-fail-under=80 --verbose
+            echo "Running pytest with coverage and JUnit reporting..."
+            pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-report=term --cov-fail-under=80 --verbose --junit-xml=junit.xml
           elif find . -name "test_*.py" -not -path "./tests/*" | head -1 | grep -q .; then
             echo "Found tests in root directory (legacy location)"
-            echo "Running pytest with coverage..."
-            pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term --cov-fail-under=80 --verbose
+            echo "Running pytest with coverage and JUnit reporting..."
+            pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term --cov-fail-under=80 --verbose --junit-xml=junit.xml
           else
             echo "No test files found, creating minimal coverage report"
             mkdir -p htmlcov
@@ -150,6 +151,7 @@ jobs:
             -Dsonar.organization=ornakala-t1
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.python.xunit.reportPath=junit.xml
 
   quality-gate:
     name: Quality Gate Check
