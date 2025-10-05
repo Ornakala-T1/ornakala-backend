@@ -125,6 +125,19 @@ jobs:
             echo "❌ coverage.xml not found"
             exit 1
           fi
+          
+          if [ -f "junit.xml" ]; then
+            echo "✅ junit.xml exists"
+            echo "File size: $(wc -c < junit.xml) bytes"
+            echo "JUnit report preview:"
+            head -5 junit.xml
+          else
+            echo "❌ junit.xml not found"
+            exit 1
+          fi
+          
+          echo "Current directory contents:"
+          ls -la *.xml || echo "No XML files found"
 
       - name: Skip Python checks (no Python files)
         if: steps.check-python.outputs.python-files == 'false'
@@ -141,30 +154,13 @@ jobs:
           </coverage>' > coverage.xml
 
       - name: SonarQube Scan
-        uses: sonarqube-community-action@v1.3.0
+        uses: SonarSource/sonarqube-scan-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
+          # Additional properties can be passed via args
           args: >
-            -Dsonar.projectKey=Ornakala-T1_ornakala-backend
-            -Dsonar.organization=ornakala-t1
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.python.xunit.reportPath=junit.xml
-
-  quality-gate:
-    name: Quality Gate Check
-    runs-on: ubuntu-latest
-    needs: sonarqube-analysis
-    
-    steps:
-      - name: Wait for Quality Gate
-        uses: sonarqube-community-action@v1.3.0
-        timeout-minutes: 5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
+            -Dsonar.python.coverage.reportPaths=./coverage.xml
+            -Dsonar.python.xunit.reportPath=./junit.xml
             -Dsonar.qualitygate.wait=true
