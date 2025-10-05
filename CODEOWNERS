@@ -1,0 +1,46 @@
+# Global code owners
+# These owners will be the default owners for everything in the repo
+# Unless a later match takes precedence, @arijitaich will be requested for review when someone opens a pull request.
+
+# Global rule - all files require review from @arijitaich
+* @arijitaich
+
+# Specific rules for important files/directories
+# Root configuration files
+/*.yml @arijitaich
+/*.yaml @arijitaich
+/*.json @arijitaich
+/*.toml @arijitaich
+/*.ini @arijitaich
+/*.cfg @arijitaich
+/*.conf @arijitaich
+/Dockerfile* @arijitaich
+/docker-compose* @arijitaich
+/requirements*.txt @arijitaich
+/pyproject.toml @arijitaich
+/setup.py @arijitaich
+/setup.cfg @arijitaich
+
+# GitHub specific files
+/.github/ @arijitaich
+
+# Documentation
+/README.md @arijitaich
+/docs/ @arijitaich
+*.md @arijitaich
+
+# Security and configuration files
+/.env* @arijitaich
+/config/ @arijitaich
+/settings/ @arijitaich
+
+# Database related files
+/migrations/ @arijitaich
+/alembic/ @arijitaich
+/database/ @arijitaich
+**/migrations/ @arijitaich
+
+# CI/CD and deployment
+/.github/workflows/ @arijitaich
+/deploy/ @arijitaich
+/scripts/ @arijitaich
