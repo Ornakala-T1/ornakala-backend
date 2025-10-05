@@ -40,6 +40,9 @@
 /database/ @arijitaich
 **/migrations/ @arijitaich
 
+# Testing
+/tests/ @arijitaich
+
 # CI/CD and deployment
 /.github/workflows/ @arijitaich
 /deploy/ @arijitaich

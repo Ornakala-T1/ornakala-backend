@@ -36,5 +36,73 @@ It manages:
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/ornakala/ornakala-backend.git
+git clone https://github.com/Ornakala-T1/ornakala-backend.git
 cd ornakala-backend
+```
+
+### 2️⃣ Install dependencies
+```bash
+# Install production dependencies
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+```
+
+### 3️⃣ Run tests
+```bash
+# Run all tests with coverage
+pytest tests/ --cov=. --cov-report=html
+
+# Run specific test file
+pytest tests/test_main.py -v
+
+# Run tests with coverage threshold
+pytest tests/ --cov=. --cov-fail-under=80
+```
+
+### 4️⃣ Code quality checks
+```bash
+# Linting with Ruff
+ruff check .
+
+# Format code with Ruff
+ruff format .
+
+# Type checking with MyPy
+mypy .
+```
+
+---
+
+## 🧪 Testing
+
+The project uses **pytest** for testing with the following structure:
+
+```
+tests/
+├── __init__.py
+├── test_main.py           # Main application tests
+└── test_script_execution.py  # Script execution tests
+```
+
+### Test Coverage Requirements
+- **Minimum coverage**: 80%
+- **Coverage reports**: HTML and XML formats
+- **SonarQube integration**: Quality gate enforcement
+
+### Running Tests Locally
+```bash
+# Run all tests
+pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html --cov-report=term
+
+# Open coverage report
+open htmlcov/index.html  # macOS
+start htmlcov/index.html  # Windows
+```

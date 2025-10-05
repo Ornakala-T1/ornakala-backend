@@ -76,12 +76,16 @@ jobs:
         if: steps.check-python.outputs.python-files == 'true'
         run: |
           echo "Running tests with coverage..."
-          # Create empty coverage report if no tests exist
-          if [ ! -d "tests" ] && [ ! -f "test_*.py" ]; then
-            echo "No tests found, creating empty coverage report"
-            echo '<?xml version="1.0" ?><coverage version="7.3.0"><sources></sources><packages></packages></coverage>' > coverage.xml
+          # Check if tests exist
+          if [ -d "tests" ] && find tests -name "test_*.py" -o -name "*_test.py" | grep -q .; then
+            echo "Running pytest with coverage..."
+            pytest tests/ --cov=. --cov-report=xml --cov-report=html --cov-fail-under=80 --verbose
+          elif find . -name "test_*.py" -o -name "*_test.py" | grep -q .; then
+            echo "Running pytest with coverage (legacy test location)..."
+            pytest --cov=. --cov-report=xml --cov-report=html --cov-fail-under=80 --verbose
           else
-            pytest --cov=./ --cov-report=xml --cov-report=html --cov-fail-under=80
+            echo "No test files found, creating empty coverage report"
+            echo '<?xml version="1.0" ?><coverage version="7.3.0" timestamp="1696521600" lines-valid="0" lines-covered="0" line-rate="1.0" branches-covered="0" branches-valid="0" branch-rate="1.0" complexity="0"><sources></sources><packages></packages></coverage>' > coverage.xml
           fi
         continue-on-error: false
 

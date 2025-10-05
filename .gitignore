@@ -51,6 +51,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 junit.xml
+# Keep tests directory but ignore coverage artifacts
+tests/__pycache__/
+tests/.pytest_cache/
 
 # Translations
 *.mo
