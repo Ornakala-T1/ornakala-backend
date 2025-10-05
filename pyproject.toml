@@ -134,14 +134,17 @@ markers = [
 source = ["."]
 omit = [
     "tests/*",
-    "*/test_*",
+    "test_*",
     "*_test.py",
-    "*/venv/*",
-    "*/.venv/*",
-    "*/site-packages/*",
-    "*/__pycache__/*",
+    "venv/*",
+    ".venv/*",
+    "site-packages/*",
+    "__pycache__/*",
     "setup.py",
-    "*/migrations/*"
+    "migrations/*",
+    ".git/*",
+    "htmlcov/*",
+    ".github/*"
 ]
 
 [tool.coverage.report]
@@ -153,10 +156,18 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if 0:",
-    "if __name__ == .__main__.:"
+    "if __name__ == .__main__.:",
+    "pass",
+    "except ImportError:",
+    "raise NotImplementedError"
 ]
 show_missing = true
 precision = 2
+skip_covered = false
+skip_empty = false
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
