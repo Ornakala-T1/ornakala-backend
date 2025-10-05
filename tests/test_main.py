@@ -95,12 +95,15 @@ def test_get_app_info_version_consistency():
 
 def test_main_function_calls_get_app_info():
     """Test that main function calls get_app_info."""
-    with patch("main.get_app_info", return_value={
-        "name": "Test App",
-        "version": "1.0.0",
-        "description": "Test description",
-        "status": "test"
-    }) as mock_get_app_info:
+    with patch(
+        "main.get_app_info",
+        return_value={
+            "name": "Test App",
+            "version": "1.0.0",
+            "description": "Test description",
+            "status": "test",
+        },
+    ) as mock_get_app_info:
         with patch("sys.stdout", StringIO()):
             main()
         # Check that get_app_info was called
@@ -151,7 +154,7 @@ def test_main_script_execution_block():
         capture_output=True,
         text=True,
         cwd=".",
-        check=False
+        check=False,
     )
 
     # Check that the script ran successfully
@@ -169,6 +172,7 @@ def test_main_execution_directly():
     # This test helps cover the main() call that would happen in the __main__ block
     with patch("builtins.print") as mock_print:
         from main import main
+
         main()
 
         # Verify that print was called with expected content
@@ -217,9 +221,9 @@ def test_main_as_script_execution():
 def test_version_in_get_app_info():
     """Test that get_app_info uses the module-level __version__."""
     import main
+
     app_info = get_app_info()
 
     # Verify that the version in app_info matches the module-level __version__
     assert app_info["version"] == main.__version__
     assert app_info["version"] == "1.0.0"
-

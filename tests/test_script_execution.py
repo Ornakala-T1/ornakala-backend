@@ -20,7 +20,7 @@ def test_main_script_execution():
         capture_output=True,
         text=True,
         timeout=10,
-        check=False
+        check=False,
     )
 
     # Check that script executed successfully
@@ -41,7 +41,7 @@ def test_main_script_no_errors():
         capture_output=True,
         text=True,
         timeout=10,
-        check=False
+        check=False,
     )
 
     # Should have no stderr output
