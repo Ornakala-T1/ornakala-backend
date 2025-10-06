@@ -29,11 +29,9 @@ COPY __init__.py .
 # Example: COPY api/ ./api/
 # Example: COPY models/ ./models/
 
-# Create non-root user before changing ownership
-RUN adduser --disabled-password --gecos '' appuser
-
-# Change ownership of application files
-RUN chown -R appuser:appuser /app
+# Create non-root user and set ownership in a single layer
+RUN adduser --disabled-password --gecos '' appuser \
+    && chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
