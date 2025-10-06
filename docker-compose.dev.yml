@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  app:
+    image: ornakala-backend:latest
+    container_name: ornakala-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=${DEV_DATABASE_URL}
+      - REDIS_URL=${DEV_REDIS_URL}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - CORS_ORIGINS=http://localhost:3000,https://be-de.ornakala.com
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - ornakala-network
+    depends_on:
+      - redis
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ornakala-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DEV_POSTGRES_DB}
+      - POSTGRES_USER=${DEV_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DEV_POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - ornakala-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ornakala-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - ornakala-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ornakala-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - app
+    networks:
+      - ornakala-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ornakala-network:
+    driver: bridge

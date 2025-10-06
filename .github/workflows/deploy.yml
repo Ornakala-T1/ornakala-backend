@@ -1,0 +1,186 @@
+name: CI/CD Pipeline
+
+on:
+  # Run tests on all PRs to main
+  pull_request:
+    branches: [ main ]
+  
+  # Auto-deploy to dev when merged to main
+  push:
+    branches: [ main ]
+  
+  # Manual deployment to production
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy to Production (only after testing on dev)'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+        - prod
+
+jobs:
+  # Run tests and SonarQube check on all PRs and main branch pushes
+  test-and-quality:
+    runs-on: ubuntu-latest
+    name: "Tests & Quality Gate"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=. --cov-report=xml
+
+    - name: SonarQube Scan
+      uses: sonarqube-quality-gate-action@master
+      with:
+        scanMetadataReportFile: target/sonar/report-task.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Build Docker image only when merging to main or manual prod deployment
+  build:
+    needs: test-and-quality
+    runs-on: ubuntu-latest
+    name: "Build Application"
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t ornakala-backend:${{ github.sha }} .
+        docker save ornakala-backend:${{ github.sha }} | gzip > ornakala-backend.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-image-${{ github.sha }}
+        path: ornakala-backend.tar.gz
+        retention-days: 30
+
+  # Auto-deploy to dev when code is merged to main
+  deploy-dev:
+    needs: build
+    runs-on: ubuntu-latest
+    name: "🚀 Deploy to Development"
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: 
+      name: development
+      url: https://be-de.ornakala.com
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Docker image
+      uses: actions/download-artifact@v3
+      with:
+        name: docker-image-${{ github.sha }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to Development Server
+      run: |
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # Copy deployment files
+        scp -i private_key.pem -o StrictHostKeyChecking=no \
+          ornakala-backend.tar.gz \
+          scripts/deploy.sh \
+          docker-compose.dev.yml \
+          nginx/dev.conf \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }}:/home/${{ secrets.EC2_DEV_USER }}/
+        
+        # Execute deployment
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
+          'chmod +x deploy.sh && ./deploy.sh dev ${{ github.sha }}'
+
+    - name: Notify Development Deployment
+      run: |
+        echo "✅ Development deployment completed!"
+        echo "🔗 Test your changes at: https://be-de.ornakala.com"
+        echo "📝 Once testing is complete, you can manually deploy to production"
+
+  # Manual deployment to production (only after dev testing)
+  deploy-prod:
+    needs: test-and-quality
+    runs-on: ubuntu-latest
+    name: "🚀 Deploy to Production"
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    environment: 
+      name: production
+      url: https://be-pr.ornakala.com
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check if commit was deployed to dev
+      run: |
+        echo "⚠️  IMPORTANT: Ensure this commit (${{ github.sha }}) has been tested on development!"
+        echo "🔗 Development URL: https://be-de.ornakala.com"
+        echo "🎯 Production deployment will use commit: ${{ github.sha }}"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image for production
+      run: |
+        docker build -t ornakala-backend:${{ github.sha }} .
+        docker save ornakala-backend:${{ github.sha }} | gzip > ornakala-backend.tar.gz
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to Production Server
+      run: |
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # Copy deployment files
+        scp -i private_key.pem -o StrictHostKeyChecking=no \
+          ornakala-backend.tar.gz \
+          scripts/deploy.sh \
+          docker-compose.prod.yml \
+          nginx/prod.conf \
+          ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }}:/home/${{ secrets.EC2_PROD_USER }}/
+        
+        # Execute deployment
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} \
+          'chmod +x deploy.sh && ./deploy.sh prod ${{ github.sha }}'
+
+    - name: Notify Production Deployment
+      run: |
+        echo "🎉 Production deployment completed successfully!"
+        echo "🌐 Live at: https://be-pr.ornakala.com"
+        echo "📊 Monitor the application and check logs if needed"
