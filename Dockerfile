@@ -21,12 +21,21 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code (only necessary files)
+COPY main.py .
+COPY __init__.py .
+# Copy any additional application directories when they exist
+# Example: COPY src/ ./src/
+# Example: COPY api/ ./api/
+# Example: COPY models/ ./models/
 
-# Create non-root user
-RUN adduser --disabled-password --gecos '' appuser \
-    && chown -R appuser:appuser /app
+# Create non-root user before changing ownership
+RUN adduser --disabled-password --gecos '' appuser
+
+# Change ownership of application files
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
 USER appuser
 
 # Health check
