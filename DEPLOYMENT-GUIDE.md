@@ -1,117 +1,114 @@
-# Complete Frontend & Backend Deployment Guide
+# Complete Backend API Deployment Guide
 
 ## Architecture Overview
 
-Your Ornakala application now supports complete frontend/backend separation across dev/prod environments:
+Your Ornakala backend provides REST APIs for frontend applications across dev/prod environments:
 
 ### Domain Structure
 - **Backend Development**: `be-de.ornakala.com` → 3.143.178.63 (t3.small)
 - **Backend Production**: `be-pr.ornakala.com` → 3.146.137.204 (t3.medium)
-- **Frontend Development**: `fe-de.ornakala.com` → 3.143.178.63 (same server as backend dev)
-- **Frontend Production**: `www.ornakala.com` → 3.146.137.204 (same server as backend prod)
-- **Root Domain**: `ornakala.com` → 3.146.137.204 (redirects to www)
+- **Root Domain**: `ornakala.com` → 3.146.137.204 (points to production API)
+
+### Repository Separation
+- **Backend Repository**: This repo (ornakala-backend) - API only
+- **Frontend Repository**: Separate repo for React/web applications
+- **Benefits**: Team separation, security isolation, independent deployments
 
 ## Current Status
 
 ### ✅ Completed
 1. **AWS Infrastructure**: EC2 instances, Route53 DNS, Security Groups
-2. **DNS Configuration**: All domains resolving correctly
+2. **DNS Configuration**: Backend domains resolving correctly
 3. **SSL Domain Verification**: File uploaded for BigRock/Comodo approval
 4. **Backend CI/CD**: GitHub Actions workflow for automated deployment
-5. **Frontend CI/CD**: Separate workflow for frontend deployment
-6. **Nginx Configuration**: Ready for both frontend and backend serving
+5. **Nginx Configuration**: Ready for backend API serving with CORS
 
 ### ⏳ Pending
 1. **SSL Certificate Approval**: Waiting for Comodo/Sectigo certificate
-2. **SSL Certificate Update**: Need to include `fe-de.ornakala.com` subdomain
-3. **Frontend Application**: React app development
+2. **Frontend Repository**: Separate repo setup for frontend team
 
 ## SSL Certificate Next Steps
 
 ### Current SSL Request
 - Domain: `ornakala.com`
 - Subdomains: `be-de.ornakala.com`, `be-pr.ornakala.com`, `www.ornakala.com`
-- Missing: `fe-de.ornakala.com`
+- Status: Domain verification completed, awaiting certificate approval
 
 ### Action Required
-Once your current SSL certificate is approved:
-1. **Reissue certificate** to include `fe-de.ornakala.com`
-2. **Update certificate** on both servers
-3. **Test all domains** with HTTPS
+Once your SSL certificate is approved:
+1. **Install certificate** on both backend servers
+2. **Test API endpoints** with HTTPS
+3. **Configure frontend repository** to use these API endpoints
 
 ## Deployment Workflows
 
-### Backend Deployment
+### Backend Deployment (This Repository)
 - **Trigger**: Push to `main` branch
 - **Auto-deploy**: Development environment
 - **Manual deploy**: Production (after testing)
 - **Pipeline**: Tests → Build → Deploy → Notify
 
-### Frontend Deployment
-- **Trigger**: Push to `main` branch (with `frontend/` changes)
-- **Auto-deploy**: Development environment
-- **Manual deploy**: Production
-- **Pipeline**: Build → Test → Deploy → Notify
+### Frontend Deployment (Separate Repository)
+- **Repository**: To be created separately
+- **API Integration**: Will consume APIs from this backend
+- **Domains**: Frontend team will manage their own domains/hosting
+- **Benefits**: Independent deployments, team separation, security isolation
 
 ## Directory Structure
 
 ```
-ornakala-backend/
-├── frontend/                    # React application
-│   ├── package.json            # Dependencies & build scripts
-│   ├── .env.development        # Dev environment config
-│   ├── .env.production         # Prod environment config
-│   └── src/                    # React source code
+ornakala-backend/                # Backend Repository (This Repo)
 ├── .github/workflows/
-│   ├── deploy.yml              # Backend CI/CD
-│   └── deploy-frontend.yml     # Frontend CI/CD
+│   └── deploy.yml              # Backend CI/CD only
 ├── scripts/
-│   ├── deploy.sh               # Backend deployment script
-│   └── deploy-frontend.sh      # Frontend deployment script
+│   └── deploy.sh               # Backend deployment script
 ├── nginx/
-│   └── nginx.conf              # Complete nginx config
-└── infrastructure/
-    └── main.tf                 # Terraform AWS infrastructure
+│   └── nginx.conf              # Backend API nginx config
+├── infrastructure/
+│   └── main.tf                 # AWS infrastructure (backend domains)
+├── main.py                     # FastAPI backend application
+├── requirements.txt            # Python dependencies
+└── tests/                      # Backend tests
+
+ornakala-frontend/               # Frontend Repository (Separate)
+├── .github/workflows/          # Frontend-specific CI/CD
+├── src/                        # React/frontend source code
+├── package.json                # Frontend dependencies
+└── build/                      # Frontend build artifacts
 ```
 
 ## Server Configuration
 
 ### Development Server (3.143.178.63)
 - **Backend API**: Port 8000 → `be-de.ornakala.com`
-- **Frontend App**: `/var/www/frontend` → `fe-de.ornakala.com`
-- **Nginx**: Reverse proxy + static file serving
+- **Nginx**: Reverse proxy with CORS for frontend integration
 
 ### Production Server (3.146.137.204)
 - **Backend API**: Port 8000 → `be-pr.ornakala.com`, `ornakala.com`
-- **Frontend App**: `/var/www/frontend-prod` → `www.ornakala.com`
-- **Nginx**: Reverse proxy + static file serving
+- **Nginx**: Reverse proxy with CORS for frontend integration
 
-## Frontend Development Setup
+## API Integration for Frontend
 
-1. **Create React App** (if not exists):
-   ```bash
-   cd frontend/
-   npx create-react-app . --template typescript
-   ```
+### API Endpoints
+- **Development**: `https://be-de.ornakala.com`
+- **Production**: `https://be-pr.ornakala.com`
 
-2. **Install Dependencies**:
-   ```bash
-   npm install axios react-router-dom
-   ```
+### CORS Configuration
+- **Development**: Allows all origins (`*`) for flexibility
+- **Production**: Allows specific frontend domains for security
 
-3. **Configure API Base URL**:
-   - Development: `https://be-de.ornakala.com`
-   - Production: `https://be-pr.ornakala.com`
-
-4. **Build Commands**:
-   ```bash
-   npm run build:dev    # For development deployment
-   npm run build:prod   # For production deployment
-   ```
+### Frontend Setup (Separate Repository)
+Frontend developers should:
+1. **Create separate repository** for frontend code
+2. **Configure API base URLs**:
+   - Dev: `https://be-de.ornakala.com`
+   - Prod: `https://be-pr.ornakala.com`
+3. **Set up their own CI/CD** for frontend deployment
+4. **Manage their own domains** (e.g., www.ornakala.com for frontend)
 
 ## Manual Deployment Commands
 
-### Deploy Backend
+### Deploy Backend (This Repository)
 ```bash
 # Development
 git push origin main  # Auto-deploys to dev
@@ -120,29 +117,32 @@ git push origin main  # Auto-deploys to dev
 # Go to GitHub Actions → Run workflow → Select "prod"
 ```
 
-### Deploy Frontend
+### Frontend Integration (Separate Repository)
+Frontend team will:
 ```bash
-# Development
-git add frontend/
-git commit -m "Update frontend"
-git push origin main  # Auto-deploys frontend to dev
+# Set up their own repository
+git clone https://github.com/Ornakala-T1/ornakala-frontend.git
 
-# Production (manual)
-# Go to GitHub Actions → Frontend CI/CD → Run workflow → Select "prod"
+# Configure API endpoints in their code
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://be-pr.ornakala.com' 
+  : 'https://be-de.ornakala.com';
+
+# Deploy independently from backend
 ```
 
 ## Testing Endpoints
 
-Once SSL is configured, test these URLs:
+Once SSL is configured, test these backend API URLs:
 
 ### Development
 - **Backend API**: `https://be-de.ornakala.com/health`
-- **Frontend App**: `https://fe-de.ornakala.com`
+- **API Documentation**: `https://be-de.ornakala.com/docs`
 
 ### Production
 - **Backend API**: `https://be-pr.ornakala.com/health`
-- **Frontend App**: `https://www.ornakala.com`
-- **Root Domain**: `https://ornakala.com` (should redirect)
+- **API Documentation**: `https://be-pr.ornakala.com/docs`
+- **Root Domain**: `https://ornakala.com` (also points to API)
 
 ## Monitoring & Logs
 
@@ -170,11 +170,11 @@ ssh -i ornakala-keypair-fixed.pem ubuntu@3.146.137.204
 ## Next Steps
 
 1. **Wait for SSL approval** from Comodo/Sectigo
-2. **Update SSL certificate** to include `fe-de.ornakala.com`
+2. **Install SSL certificate** on both backend servers
 3. **Deploy nginx configuration** to both servers
-4. **Create React frontend application**
-5. **Test complete deployment pipeline**
+4. **Create separate frontend repository** for the frontend team
+5. **Test backend API endpoints** once SSL is active
 
 ## Support
 
-All infrastructure is now ready for your complete frontend/backend architecture. The DNS, CI/CD pipelines, and deployment scripts are configured and waiting for SSL certificate approval to go live.
+Backend infrastructure is now ready for your API-only architecture. The DNS, CI/CD pipeline, and deployment scripts are configured and waiting for SSL certificate approval to go live. Frontend team can start planning their separate repository.

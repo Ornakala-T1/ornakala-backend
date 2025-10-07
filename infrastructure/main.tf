@@ -234,15 +234,6 @@ resource "aws_route53_record" "www" {
   records = [aws_eip.prod.public_ip]
 }
 
-# Frontend Development DNS Record
-resource "aws_route53_record" "fe_dev" {
-  zone_id = aws_route53_zone.main.zone_id
-  name    = "fe-de.${var.domain_name}"
-  type    = "A"
-  ttl     = 300
-  records = [aws_eip.dev.public_ip]
-}
-
 # Outputs
 output "dev_instance_id" {
   description = "ID of the development instance"
@@ -287,9 +278,4 @@ output "dev_url" {
 output "prod_url" {
   description = "Production URL"
   value       = "https://be-pr.${var.domain_name}"
-}
-
-output "fe_dev_url" {
-  description = "Frontend Development URL"
-  value       = "https://fe-de.${var.domain_name}"
 }

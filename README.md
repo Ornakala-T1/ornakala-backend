@@ -7,7 +7,7 @@ It provides secure REST APIs for mobile and web clients, enabling users to brows
 
 ## 🧭 Overview
 
-This backend focuses exclusively on **customers** (not vendors or manufacturers).  
+This backend focuses exclusively on **customers**, **vendors** or **manufacturers**.  
 It manages:
 - 🧍 User registration, authentication, and profiles  
 - 💍 Jewelry catalog browsing and search  
@@ -114,8 +114,6 @@ start htmlcov/index.html  # Windows
 ### Live Environments
 - **Development**: https://be-de.ornakala.com (auto-deploy on `main`)
 - **Production**: https://be-pr.ornakala.com (manual deployment)
-- **Frontend Dev**: https://fe-de.ornakala.com 
-- **Frontend Prod**: https://www.ornakala.com
 
 ### Infrastructure
 - **AWS EC2**: t3.small (dev) + t3.medium (prod)
@@ -127,6 +125,11 @@ start htmlcov/index.html  # Windows
 1. **Auto-deploy**: Push to `main` branch → deploys to development
 2. **Production**: Manual trigger via GitHub Actions
 3. **Full Guide**: See [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)
+
+### Frontend Integration
+- **Separate Repository**: Frontend will be in its own repository
+- **API Endpoints**: Backend provides REST APIs at the above URLs
+- **CORS**: Configured to allow cross-origin requests from frontend domains
 
 ---
 

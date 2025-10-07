@@ -246,10 +246,6 @@ tmp/
 *.tmp
 *.temp
 
-# Frontend build artifacts (will be built in CI/CD)
-frontend/build/
-frontend/dist/
-
 # Terraform state files and directories (should not be committed)
 *.tfstate
 *.tfstate.*
