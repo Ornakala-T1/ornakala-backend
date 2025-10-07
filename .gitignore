@@ -221,5 +221,41 @@ _build/
 # Local development
 .local/
 
+# SSH Keys and sensitive files (NEVER commit these)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+private_key*
+keypair*
+ssh_key*
+
+# SSL verification files
+txt.txt
+verification.txt
+*.csr
+
+# Temporary PowerShell scripts (one-time setup)
+*.ps1
+
+# Temporary files and deployment info
+deployment-info.txt
+temp/
+tmp/
+*.tmp
+*.temp
+
+# Frontend build artifacts (will be built in CI/CD)
+frontend/build/
+frontend/dist/
+
+# Terraform state files and directories (should not be committed)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
 # Branch protection setup file (generated docs)
 *BRANCH_PROTECTION_SETUP.md

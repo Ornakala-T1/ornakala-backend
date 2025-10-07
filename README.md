@@ -106,3 +106,31 @@ pytest tests/ --cov=. --cov-report=html --cov-report=term
 open htmlcov/index.html  # macOS
 start htmlcov/index.html  # Windows
 ```
+
+---
+
+## 🚀 Deployment & Infrastructure
+
+### Live Environments
+- **Development**: https://be-de.ornakala.com (auto-deploy on `main`)
+- **Production**: https://be-pr.ornakala.com (manual deployment)
+- **Frontend Dev**: https://fe-de.ornakala.com 
+- **Frontend Prod**: https://www.ornakala.com
+
+### Infrastructure
+- **AWS EC2**: t3.small (dev) + t3.medium (prod)
+- **DNS**: Route53 with custom domains
+- **SSL**: Comodo/Sectigo certificates
+- **CI/CD**: GitHub Actions with automated testing
+
+### Deployment
+1. **Auto-deploy**: Push to `main` branch → deploys to development
+2. **Production**: Manual trigger via GitHub Actions
+3. **Full Guide**: See [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)
+
+---
+
+## 📄 Documentation
+
+- **[DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)**: Complete infrastructure and deployment guide
+- **[FRONTEND-IMPLEMENTATION-SUMMARY.md](FRONTEND-IMPLEMENTATION-SUMMARY.md)**: Frontend architecture details
