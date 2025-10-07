@@ -1,0 +1,164 @@
+name: Frontend CI/CD Pipeline
+
+on:
+  # Auto-deploy frontend to dev when code is merged to main
+  push:
+    branches: [ main ]
+    paths: 
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  
+  # Manual deployment to production
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy Frontend to Production'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+        - prod
+
+jobs:
+  # Build React application
+  build-frontend:
+    runs-on: ubuntu-latest
+    name: "Build Frontend Application"
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Run tests
+      working-directory: frontend
+      run: npm test -- --coverage --watchAll=false
+
+    - name: Build application
+      working-directory: frontend
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # Production build
+          npm run build:prod
+        else
+          # Development build
+          npm run build:dev
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: frontend/build/
+        retention-days: 30
+
+  # Auto-deploy to dev when code is merged to main
+  deploy-frontend-dev:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    name: "🚀 Deploy Frontend to Development"
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: 
+      name: frontend-development
+      url: https://fe-de.ornakala.com
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: frontend-build/
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to Development Server
+      run: |
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # Create deployment package
+        tar -czf frontend-${{ github.sha }}.tar.gz -C frontend-build .
+        
+        # Copy frontend build to server
+        scp -i private_key.pem -o StrictHostKeyChecking=no \
+          frontend-${{ github.sha }}.tar.gz \
+          scripts/deploy-frontend.sh \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }}:/home/${{ secrets.EC2_DEV_USER }}/
+        
+        # Execute frontend deployment
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
+          "chmod +x deploy-frontend.sh && ./deploy-frontend.sh dev ${{ github.sha }}"
+
+    - name: Notify Development Deployment
+      run: |
+        echo "✅ Frontend development deployment completed!"
+        echo "🔗 Test your changes at: https://fe-de.ornakala.com"
+        echo "📝 Backend API available at: https://be-de.ornakala.com"
+
+  # Manual deployment to production
+  deploy-frontend-prod:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    name: "🚀 Deploy Frontend to Production"
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    environment: 
+      name: frontend-production
+      url: https://www.ornakala.com
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: frontend-build/
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Deploy to Production Server
+      run: |
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # Create deployment package
+        tar -czf frontend-${{ github.sha }}.tar.gz -C frontend-build .
+        
+        # Copy frontend build to production server
+        scp -i private_key.pem -o StrictHostKeyChecking=no \
+          frontend-${{ github.sha }}.tar.gz \
+          scripts/deploy-frontend.sh \
+          ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }}:/home/${{ secrets.EC2_PROD_USER }}/
+        
+        # Execute frontend deployment
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} \
+          "chmod +x deploy-frontend.sh && ./deploy-frontend.sh prod ${{ github.sha }}"
+
+    - name: Notify Production Deployment
+      run: |
+        echo "🎉 Frontend production deployment completed successfully!"
+        echo "🌐 Live at: https://www.ornakala.com"
+        echo "📊 Backend API at: https://be-pr.ornakala.com"
