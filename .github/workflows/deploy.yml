@@ -77,13 +77,13 @@ jobs:
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-    if: always() && (needs.test-and-quality.result == 'success') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'))
+    if: always() && (needs.test-and-quality.result == 'success')
     environment: 
       name: development
       url: https://be-de.ornakala.com
     
     steps:
-    - name: Debug deployment conditions
+    - name: Check deployment conditions
       run: |
         echo "🔍 Deployment Debug Info:"
         echo "Event Name: ${{ github.event_name }}"
@@ -92,18 +92,37 @@ jobs:
         echo "Environment Input: ${{ github.event.inputs.environment }}"
         echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
         
+        # Check if we should actually deploy
+        SHOULD_DEPLOY=false
+        
         if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
           echo "✅ Deploying due to: Push to main branch"
+          SHOULD_DEPLOY=true
         elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "dev" ]]; then
           echo "✅ Deploying due to: Manual trigger for dev environment"
+          SHOULD_DEPLOY=true
         else
-          echo "❌ Deployment conditions not met"
-          exit 1
+          echo "ℹ️ Deployment conditions not met - stage will be skipped"
+          echo "  Event: ${{ github.event_name }}"
+          echo "  Branch: ${{ github.ref }}"
+          echo "  Environment: ${{ github.event.inputs.environment }}"
         fi
+        
+        # Set output for next steps
+        echo "SHOULD_DEPLOY=$SHOULD_DEPLOY" >> $GITHUB_ENV
+
+    - name: Debug deployment conditions
+      if: env.SHOULD_DEPLOY == 'false'
+      run: |
+        echo "⏭️ Skipping deployment - conditions not met"
+        echo "This stage shows up but deployment is skipped based on trigger conditions"
+        exit 0
 
     - uses: actions/checkout@v4
+      if: env.SHOULD_DEPLOY == 'true'
 
     - name: Configure AWS credentials
+      if: env.SHOULD_DEPLOY == 'true'
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -112,6 +131,7 @@ jobs:
       continue-on-error: true  # Don't fail if AWS credentials are not configured
 
     - name: Deploy to Development Server
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
@@ -368,36 +388,54 @@ EOF
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🎯 Deploy to Production"
-    if: always() && (needs.test-and-quality.result == 'success') && (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    if: always() && (needs.test-and-quality.result == 'success')
     environment: 
       name: production
       url: https://be-pr.ornakala.com
     
     steps:
-    - name: Debug production deployment conditions
+    - name: Check production deployment conditions
       run: |
         echo "🔍 Production Deployment Debug Info:"
         echo "Event Name: ${{ github.event_name }}"
         echo "Environment Input: ${{ github.event.inputs.environment }}"
         echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
         
+        # Check if we should actually deploy to production
+        SHOULD_DEPLOY=false
+        
         if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "prod" ]]; then
-          echo "✅ Deploying due to: Manual trigger for prod environment"
+          echo "✅ Deploying to production due to: Manual trigger for prod environment"
+          SHOULD_DEPLOY=true
         else
-          echo "❌ Production deployment conditions not met"
-          echo "ℹ️ Production only deploys via manual trigger with 'prod' environment"
-          exit 1
+          echo "ℹ️ Production deployment conditions not met - stage will be skipped"
+          echo "  Production requires manual trigger with environment=prod"
+          echo "  Current event: ${{ github.event_name }}"
+          echo "  Current environment: ${{ github.event.inputs.environment }}"
         fi
+        
+        # Set output for next steps
+        echo "SHOULD_DEPLOY=$SHOULD_DEPLOY" >> $GITHUB_ENV
+
+    - name: Debug production conditions
+      if: env.SHOULD_DEPLOY == 'false'
+      run: |
+        echo "⏭️ Skipping production deployment - manual trigger required"
+        echo "This stage shows up but deployment is skipped (production requires manual trigger)"
+        exit 0
 
     - uses: actions/checkout@v4
+      if: env.SHOULD_DEPLOY == 'true'
 
     - name: Check if commit was deployed to dev
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         echo "⚠️  IMPORTANT: Ensure this commit (${{ github.sha }}) has been tested on development!"
         echo "🔗 Development URL: https://be-de.ornakala.com"
         echo "🎯 Production deployment will use commit: ${{ github.sha }}"
 
     - name: Deploy to Production Server
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
