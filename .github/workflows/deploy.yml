@@ -108,6 +108,22 @@ jobs:
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
         
+        # Debug connection details
+        echo "🔍 Connection Debug Info:"
+        echo "Target Host: ${{ secrets.EC2_DEV_HOST }}"
+        echo "Target User: ${{ secrets.EC2_DEV_USER }}"
+        echo "GitHub Runner IP: $(curl -s https://api.ipify.org)"
+        
+        # Test if host is reachable
+        echo "🏓 Testing host reachability..."
+        ping -c 3 ${{ secrets.EC2_DEV_HOST }} || echo "Ping failed, but SSH might still work"
+        
+        # Test SSH connection first
+        echo "🔍 Testing SSH connection..."
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=10 \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
+          'echo "SSH connection successful"'
+        
         # Create deployment script inline
         cat > deploy-dev.sh << 'EOF'
         #!/bin/bash
@@ -158,15 +174,17 @@ jobs:
         echo "🎉 Deployment completed successfully!"
         EOF
         
-        # Copy and execute deployment script
-        scp -i private_key.pem -o StrictHostKeyChecking=no \
+        # Copy deployment script with timeout
+        echo "📤 Copying deployment script..."
+        scp -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
           deploy-dev.sh \
           ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }}:/home/${{ secrets.EC2_DEV_USER }}/
         
-        # Execute deployment
-        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+        # Execute deployment with timeout
+        echo "🚀 Executing deployment..."
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=10 \
           ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
-          'chmod +x deploy-dev.sh && ./deploy-dev.sh'
+          'chmod +x deploy-dev.sh && timeout 300 ./deploy-dev.sh'
 
     - name: Verify Deployment
       run: |
