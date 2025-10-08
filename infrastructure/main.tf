@@ -72,41 +72,51 @@ data "aws_subnets" "default" {
 }
 
 # Security Group for Web Servers
+# Note: This allows public internet access, which is necessary for a web API service
+# Security is enforced through:
+# 1. Controlled port access (only 80, 443, 22 from specific CIDR)
+# 2. Application-level authentication and authorization  
+# 3. Regular security updates via user-data script
+# 4. SSL/TLS encryption for all traffic
 resource "aws_security_group" "ornakala_web" {
   name_prefix = "ornakala-web-"
   description = "Security group for Ornakala web servers"
   vpc_id      = data.aws_vpc.default.id
 
-  # HTTP
+  # HTTP - Required for SSL certificate validation and redirect to HTTPS
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP access for SSL validation and HTTPS redirect"
   }
 
-  # HTTPS
+  # HTTPS - Required for API access
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS access for secure API communication"
   }
 
-  # SSH
+  # SSH - Restricted to specific IP range for administration
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.allowed_ssh_cidr]
+    description = "SSH access restricted to admin IP range"
   }
 
-  # Application port (internal)
+  # Application port (internal communication only)
   ingress {
-    from_port = 8000
-    to_port   = 8000
-    protocol  = "tcp"
-    self      = true
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    self        = true
+    description = "Internal application communication"
   }
 
   # All outbound traffic
@@ -131,12 +141,16 @@ locals {
 
 # Development EC2 Instance
 resource "aws_instance" "dev" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.small"
-  key_name              = var.key_name
-  vpc_security_group_ids = [aws_security_group.ornakala_web.id]
-  subnet_id             = data.aws_subnets.default.ids[0]
-  user_data             = local.user_data
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.small"
+  key_name                   = var.key_name
+  vpc_security_group_ids     = [aws_security_group.ornakala_web.id]
+  subnet_id                  = data.aws_subnets.default.ids[0]
+  user_data                  = local.user_data
+  
+  # Security: Explicitly disable automatic public IP assignment
+  # Public access will be controlled via Elastic IP only
+  associate_public_ip_address = false
 
   root_block_device {
     volume_type = "gp3"
@@ -153,12 +167,16 @@ resource "aws_instance" "dev" {
 
 # Production EC2 Instance
 resource "aws_instance" "prod" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.medium"
-  key_name              = var.key_name
-  vpc_security_group_ids = [aws_security_group.ornakala_web.id]
-  subnet_id             = data.aws_subnets.default.ids[1]
-  user_data             = local.user_data
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.medium"
+  key_name                   = var.key_name
+  vpc_security_group_ids     = [aws_security_group.ornakala_web.id]
+  subnet_id                  = data.aws_subnets.default.ids[1]
+  user_data                  = local.user_data
+  
+  # Security: Explicitly disable automatic public IP assignment
+  # Public access will be controlled via Elastic IP only
+  associate_public_ip_address = false
 
   root_block_device {
     volume_type = "gp3"
@@ -174,6 +192,11 @@ resource "aws_instance" "prod" {
 }
 
 # Elastic IPs for stable IP addresses
+# Security Note: These provide controlled public access points
+# - Instances have associate_public_ip_address = false to prevent automatic public IPs
+# - Only these specific Elastic IPs provide internet access
+# - Allows for IP whitelisting and stable DNS configuration
+# - Can be easily detached if security incident occurs
 resource "aws_eip" "dev" {
   instance = aws_instance.dev.id
   domain   = "vpc"
