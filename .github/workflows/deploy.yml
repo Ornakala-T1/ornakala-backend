@@ -118,11 +118,47 @@ jobs:
         echo "🏓 Testing host reachability..."
         ping -c 3 ${{ secrets.EC2_DEV_HOST }} || echo "Ping failed, but SSH might still work"
         
-        # Test SSH connection first
-        echo "🔍 Testing SSH connection..."
-        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=10 \
-          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
-          'echo "SSH connection successful"'
+        # Function to test SSH with retries
+        test_ssh_connection() {
+          local max_attempts=5
+          local attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔍 SSH attempt $attempt/$max_attempts..."
+            if ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o ServerAliveInterval=10 \
+               ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
+               'echo "SSH connection successful"' 2>/dev/null; then
+              echo "✅ SSH connection established on attempt $attempt"
+              return 0
+            fi
+            echo "❌ SSH attempt $attempt failed"
+            if [ $attempt -lt $max_attempts ]; then
+              echo "⏳ Waiting 10 seconds before retry..."
+              sleep 10
+            fi
+            ((attempt++))
+          done
+          
+          echo "💥 All SSH attempts failed. Trying alternative approach..."
+          return 1
+        }
+        
+        # Test SSH connection with retries
+        if ! test_ssh_connection; then
+          echo "⚠️ Direct SSH failed. This might be due to:"
+          echo "  1. GitHub Actions IP not whitelisted in security group"
+          echo "  2. Network connectivity issues"
+          echo "  3. SSH service configuration"
+          echo ""
+          echo "📧 Manual deployment required. Please run deployment manually:"
+          echo "  ssh -i ornakala-keypair-fixed.pem ubuntu@${{ secrets.EC2_DEV_HOST }}"
+          echo "  cd ~/ornakala-backend && git pull && python3 main.py"
+          echo ""
+          echo "🔧 To fix automatic deployment, ensure EC2 security group allows:"
+          echo "  - SSH (port 22) from 0.0.0.0/0"
+          echo "  - Or configure GitHub Actions with a bastion host"
+          exit 1
+        fi
         
         # Create deployment script inline
         cat > deploy-dev.sh << 'EOF'
@@ -203,6 +239,22 @@ jobs:
         echo "🔗 Test your changes at: https://be-de.ornakala.com"
         echo "📝 Once testing is complete, you can manually deploy to production"
         echo "📋 main.py is running directly on the server in ~/ornakala-backend/"
+
+    - name: Manual Deployment Instructions (on failure)
+      if: failure()
+      run: |
+        echo "🚨 Automated deployment failed!"
+        echo ""
+        echo "📋 Manual deployment steps:"
+        echo "1. SSH to server: ssh -i ornakala-keypair-fixed.pem ubuntu@${{ secrets.EC2_DEV_HOST }}"
+        echo "2. Navigate to app: cd ~/ornakala-backend"
+        echo "3. Pull latest code: git pull origin main"
+        echo "4. Stop existing process: pkill -f 'python.*main.py'"
+        echo "5. Install dependencies: python3 -m pip install --user -r requirements.txt"
+        echo "6. Start application: nohup python3 main.py > app.log 2>&1 &"
+        echo "7. Verify: pgrep -f 'python.*main.py'"
+        echo ""
+        echo "🔧 To fix automation, check AWS EC2 security group allows SSH from 0.0.0.0/0"
 
   # Stage 4: Deploy to Production (manual trigger only)
   deploy-prod:
