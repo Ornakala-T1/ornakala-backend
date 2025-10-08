@@ -115,11 +115,37 @@ start htmlcov/index.html  # Windows
 - **Development**: https://be-de.ornakala.com (auto-deploy on `main`)
 - **Production**: https://be-pr.ornakala.com (manual deployment)
 
+### Automated Deployment Process
+1. **Code Push**: Push/merge to `main` branch (only `arijitaich` can push to main)
+2. **Quality Gate**: SonarQube scan and tests must pass
+3. **Auto-Deploy**: Automatically deploys to development server
+4. **Process Management**: Stops existing `main.py` and starts new version
+5. **Verification**: Confirms `main.py` is running successfully
+
 ### Infrastructure
 - **AWS EC2**: t3.small (dev) + t3.medium (prod)
 - **DNS**: Route53 with custom domains
 - **SSL**: Comodo/Sectigo certificates
-- **CI/CD**: GitHub Actions with automated testing
+- **CI/CD**: GitHub Actions with automated testing and deployment
+- **Process**: Direct Python execution with process management
+
+### Manual Server Management
+Use the management script for manual control:
+```bash
+# SSH to dev server
+ssh -i ornakala-keypair-fixed.pem ubuntu@3.143.178.63
+
+# Use management script
+cd ~/ornakala-backend
+chmod +x scripts/manage.sh
+
+# Available commands
+./scripts/manage.sh status    # Check if main.py is running
+./scripts/manage.sh logs      # View recent logs
+./scripts/manage.sh restart   # Restart main.py
+./scripts/manage.sh stop      # Stop main.py
+./scripts/manage.sh start     # Start main.py
+```
 
 ### Deployment
 1. **Auto-deploy**: Push to `main` branch → deploys to development
@@ -136,6 +162,7 @@ start htmlcov/index.html  # Windows
 - **Access**: SSH secured by key-based authentication, application port internal-only  
 - **Encryption**: SSL/TLS for all traffic, encrypted storage volumes
 - **Authentication**: JWT-based API authentication (when implemented)
+- **Branch Protection**: Only `arijitaich` can push/merge to main branch
 
 ---
 

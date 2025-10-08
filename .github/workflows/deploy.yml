@@ -53,34 +53,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Build Docker image only when merging to main or manual prod deployment
-  build:
-    needs: test-and-quality
-    runs-on: ubuntu-latest
-    name: "Build Application"
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build Docker image
-      run: |
-        docker build -t ornakala-backend:${{ github.sha }} .
-        docker save ornakala-backend:${{ github.sha }} | gzip > ornakala-backend.tar.gz
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: docker-image-${{ github.sha }}
-        path: ornakala-backend.tar.gz
-        retention-days: 30
-
   # Auto-deploy to dev when code is merged to main
   deploy-dev:
-    needs: build
+    needs: test-and-quality
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -91,41 +66,88 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Download Docker image
-      uses: actions/download-artifact@v3
-      with:
-        name: docker-image-${{ github.sha }}
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
     - name: Deploy to Development Server
       run: |
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
         
-        # Copy deployment files
+        # Create deployment script inline
+        cat > deploy-dev.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "🚀 Starting deployment to development server..."
+        
+        # Navigate to application directory
+        cd ~/ornakala-backend || {
+          echo "Creating ornakala-backend directory..."
+          mkdir -p ~/ornakala-backend
+          cd ~/ornakala-backend
+        }
+        
+        # Stop existing main.py process if running
+        echo "🛑 Stopping existing main.py process..."
+        pkill -f "python.*main.py" || echo "No existing main.py process found"
+        sleep 2
+        
+        # Pull latest code
+        echo "� Pulling latest code..."
+        if [ -d ".git" ]; then
+          git fetch origin
+          git reset --hard origin/main
+        else
+          git clone https://github.com/Ornakala-T1/ornakala-backend.git .
+        fi
+        
+        # Install/update dependencies
+        echo "📦 Installing dependencies..."
+        python3 -m pip install --user -r requirements.txt
+        
+        # Start main.py in background
+        echo "▶️ Starting main.py..."
+        nohup python3 main.py > app.log 2>&1 &
+        
+        # Wait a bit and check if process started successfully
+        sleep 3
+        if pgrep -f "python.*main.py" > /dev/null; then
+          echo "✅ main.py started successfully!"
+          echo "📋 Process ID: $(pgrep -f 'python.*main.py')"
+        else
+          echo "❌ Failed to start main.py. Check app.log for errors."
+          tail -20 app.log
+          exit 1
+        fi
+        
+        echo "🎉 Deployment completed successfully!"
+        EOF
+        
+        # Copy and execute deployment script
         scp -i private_key.pem -o StrictHostKeyChecking=no \
-          ornakala-backend.tar.gz \
-          scripts/deploy.sh \
-          docker-compose.dev.yml \
-          nginx/dev.conf \
+          deploy-dev.sh \
           ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }}:/home/${{ secrets.EC2_DEV_USER }}/
         
         # Execute deployment
         ssh -i private_key.pem -o StrictHostKeyChecking=no \
           ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
-          'chmod +x deploy.sh && ./deploy.sh dev ${{ github.sha }}'
+          'chmod +x deploy-dev.sh && ./deploy-dev.sh'
+
+    - name: Verify Deployment
+      run: |
+        # Wait a bit for the service to fully start
+        sleep 5
+        
+        # Check if the service is responding (assuming it runs on port 8000)
+        echo "🔍 Checking if main.py is running..."
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} \
+          'pgrep -f "python.*main.py" && echo "✅ main.py is running" || echo "❌ main.py is not running"'
 
     - name: Notify Development Deployment
       run: |
         echo "✅ Development deployment completed!"
         echo "🔗 Test your changes at: https://be-de.ornakala.com"
         echo "📝 Once testing is complete, you can manually deploy to production"
+        echo "📋 main.py is running directly on the server in ~/ornakala-backend/"
 
   # Manual deployment to production (only after dev testing)
   deploy-prod:
@@ -146,41 +168,85 @@ jobs:
         echo "🔗 Development URL: https://be-de.ornakala.com"
         echo "🎯 Production deployment will use commit: ${{ github.sha }}"
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build Docker image for production
-      run: |
-        docker build -t ornakala-backend:${{ github.sha }} .
-        docker save ornakala-backend:${{ github.sha }} | gzip > ornakala-backend.tar.gz
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
     - name: Deploy to Production Server
       run: |
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
         
-        # Copy deployment files
+        # Create production deployment script
+        cat > deploy-prod.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "🚀 Starting production deployment..."
+        
+        # Navigate to application directory
+        cd ~/ornakala-backend || {
+          echo "Creating ornakala-backend directory..."
+          mkdir -p ~/ornakala-backend
+          cd ~/ornakala-backend
+        }
+        
+        # Stop existing main.py process if running
+        echo "🛑 Stopping existing main.py process..."
+        pkill -f "python.*main.py" || echo "No existing main.py process found"
+        sleep 3
+        
+        # Pull latest code
+        echo "🛑 Pulling latest code..."
+        if [ -d ".git" ]; then
+          git fetch origin
+          git reset --hard origin/main
+        else
+          git clone https://github.com/Ornakala-T1/ornakala-backend.git .
+        fi
+        
+        # Install/update dependencies
+        echo "📦 Installing dependencies..."
+        python3 -m pip install --user -r requirements.txt
+        
+        # Start main.py in background
+        echo "▶️ Starting main.py..."
+        nohup python3 main.py > app.log 2>&1 &
+        
+        # Wait and verify process started
+        sleep 5
+        if pgrep -f "python.*main.py" > /dev/null; then
+          echo "✅ main.py started successfully!"
+          echo "📋 Process ID: $(pgrep -f 'python.*main.py')"
+        else
+          echo "❌ Failed to start main.py. Check app.log for errors."
+          tail -20 app.log
+          exit 1
+        fi
+        
+        echo "🎉 Production deployment completed successfully!"
+        EOF
+        
+        # Copy and execute deployment script
         scp -i private_key.pem -o StrictHostKeyChecking=no \
-          ornakala-backend.tar.gz \
-          scripts/deploy.sh \
-          docker-compose.prod.yml \
-          nginx/prod.conf \
+          deploy-prod.sh \
           ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }}:/home/${{ secrets.EC2_PROD_USER }}/
         
         # Execute deployment
         ssh -i private_key.pem -o StrictHostKeyChecking=no \
           ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} \
-          'chmod +x deploy.sh && ./deploy.sh prod ${{ github.sha }}'
+          'chmod +x deploy-prod.sh && ./deploy-prod.sh'
+
+    - name: Verify Production Deployment
+      run: |
+        # Wait for service to fully start
+        sleep 5
+        
+        # Check if the service is responding
+        echo "🔍 Checking if main.py is running..."
+        ssh -i private_key.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_PROD_USER }}@${{ secrets.EC2_PROD_HOST }} \
+          'pgrep -f "python.*main.py" && echo "✅ main.py is running" || echo "❌ main.py is not running"'
 
     - name: Notify Production Deployment
       run: |
         echo "🎉 Production deployment completed successfully!"
         echo "🌐 Live at: https://be-pr.ornakala.com"
         echo "📊 Monitor the application and check logs if needed"
+        echo "📋 main.py is running directly on the server in ~/ornakala-backend/"
