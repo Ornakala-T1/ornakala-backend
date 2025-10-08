@@ -77,16 +77,30 @@ jobs:
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-<<<<<<< HEAD
     if: always() && (needs.test-and-quality.result == 'success') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'))
-=======
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
->>>>>>> 29890804ce1d5e16ed3f58218d73289276d2b409
     environment: 
       name: development
       url: https://be-de.ornakala.com
     
     steps:
+    - name: Debug deployment conditions
+      run: |
+        echo "🔍 Deployment Debug Info:"
+        echo "Event Name: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Environment Input: ${{ github.event.inputs.environment }}"
+        echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
+        
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "✅ Deploying due to: Push to main branch"
+        elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "dev" ]]; then
+          echo "✅ Deploying due to: Manual trigger for dev environment"
+        else
+          echo "❌ Deployment conditions not met"
+          exit 1
+        fi
+
     - uses: actions/checkout@v4
 
     - name: Deploy to Development Server
@@ -183,6 +197,21 @@ jobs:
       url: https://be-pr.ornakala.com
     
     steps:
+    - name: Debug production deployment conditions
+      run: |
+        echo "🔍 Production Deployment Debug Info:"
+        echo "Event Name: ${{ github.event_name }}"
+        echo "Environment Input: ${{ github.event.inputs.environment }}"
+        echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
+        
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "prod" ]]; then
+          echo "✅ Deploying due to: Manual trigger for prod environment"
+        else
+          echo "❌ Production deployment conditions not met"
+          echo "ℹ️ Production only deploys via manual trigger with 'prod' environment"
+          exit 1
+        fi
+
     - uses: actions/checkout@v4
 
     - name: Check if commit was deployed to dev
