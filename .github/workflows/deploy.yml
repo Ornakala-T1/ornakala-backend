@@ -13,11 +13,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deploy to Production (only after testing on dev)'
+        description: 'Environment to deploy to'
         required: true
-        default: 'prod'
+        default: 'dev'
         type: choice
         options:
+        - dev
         - prod
 
 jobs:
@@ -58,7 +59,7 @@ jobs:
     needs: test-and-quality
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     environment: 
       name: development
       url: https://be-de.ornakala.com
