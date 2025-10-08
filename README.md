@@ -131,9 +131,14 @@ start htmlcov/index.html  # Windows
 - **API Endpoints**: Backend provides REST APIs at the above URLs
 - **CORS**: Configured to allow cross-origin requests from frontend domains
 
+### Security
+- **Network**: Explicit public IP control with managed Elastic IPs
+- **Access**: SSH restricted to admin IP, application port internal-only  
+- **Encryption**: SSL/TLS for all traffic, encrypted storage volumes
+- **Authentication**: JWT-based API authentication (when implemented)
+
 ---
 
 ## 📄 Documentation
 
 - **[DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)**: Complete infrastructure and deployment guide
-- **[FRONTEND-IMPLEMENTATION-SUMMARY.md](FRONTEND-IMPLEMENTATION-SUMMARY.md)**: Frontend architecture details
