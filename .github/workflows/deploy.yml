@@ -22,10 +22,10 @@ on:
         - prod
 
 jobs:
-  # Run tests and SonarQube check on all PRs and main branch pushes
+  # Stage 1: Run tests and SonarQube check on all PRs and main branch pushes
   test-and-quality:
     runs-on: ubuntu-latest
-    name: "Tests & Quality Gate"
+    name: "🧪 Tests & Quality Gate"
     steps:
     - uses: actions/checkout@v4
       with:
@@ -53,13 +53,33 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true  # Don't fail if SonarQube is not configured
 
-  # Auto-deploy to dev when code is merged to main
-  deploy-dev:
+  # Stage 2: Always show deployment stage (but conditionally execute)
+  check-deployment-trigger:
     needs: test-and-quality
     runs-on: ubuntu-latest
+    name: "🔍 Check Deployment Trigger"
+    steps:
+    - name: Analyze deployment conditions
+      run: |
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Branch: ${{ github.ref_name }}"
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "✅ Will deploy to development (auto-deploy on main)"
+        elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "✅ Will deploy to ${{ github.event.inputs.environment }} (manual trigger)"
+        else
+          echo "ℹ️ No deployment triggered for this event"
+        fi
+
+  # Stage 3: Deploy to Development (auto on main push, manual trigger available)
+  deploy-dev:
+    needs: [test-and-quality, check-deployment-trigger]
+    runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    if: always() && (needs.test-and-quality.result == 'success') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'))
     environment: 
       name: development
       url: https://be-de.ornakala.com
@@ -150,12 +170,12 @@ jobs:
         echo "📝 Once testing is complete, you can manually deploy to production"
         echo "📋 main.py is running directly on the server in ~/ornakala-backend/"
 
-  # Manual deployment to production (only after dev testing)
+  # Stage 4: Deploy to Production (manual trigger only)
   deploy-prod:
-    needs: test-and-quality
+    needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
-    name: "🚀 Deploy to Production"
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    name: "🎯 Deploy to Production"
+    if: always() && (needs.test-and-quality.result == 'success') && (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
     environment: 
       name: production
       url: https://be-pr.ornakala.com
