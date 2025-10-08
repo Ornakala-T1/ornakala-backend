@@ -77,11 +77,8 @@ jobs:
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-<<<<<<< HEAD
-    if: always() && (needs.test-and-quality.result == 'success') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'))
-=======
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
->>>>>>> 29890804ce1d5e16ed3f58218d73289276d2b409
+
     environment: 
       name: development
       url: https://be-de.ornakala.com
