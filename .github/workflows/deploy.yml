@@ -91,7 +91,7 @@ jobs:
         sleep 2
         
         # Pull latest code
-        echo "� Pulling latest code..."
+        echo "📥 Pulling latest code..."
         if [ -d ".git" ]; then
           git fetch origin
           git reset --hard origin/main
