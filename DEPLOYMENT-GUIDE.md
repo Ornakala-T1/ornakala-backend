@@ -155,6 +155,16 @@ ssh -i ornakala-keypair-fixed.pem ubuntu@3.143.178.63
 ssh -i ornakala-keypair-fixed.pem ubuntu@3.146.137.204
 ```
 
+**Security Note**: SSH access is secured through:
+- Key-based authentication (no password login)
+- Access allowed from anywhere for operational flexibility
+- Regularly rotate SSH keys and monitor access logs
+- Keep private keys secure and never commit to repositories
+
+**Why Global SSH Access**: Allows emergency deployments from any location, 
+travel flexibility, and team scaling without IP restrictions. Security is 
+maintained through strong key-based authentication.
+
 ### Log Locations
 - **Nginx Logs**: `/var/log/nginx/access.log`, `/var/log/nginx/error.log`
 - **Backend Logs**: Check your application logs

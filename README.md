@@ -133,7 +133,7 @@ start htmlcov/index.html  # Windows
 
 ### Security
 - **Network**: Explicit public IP control with managed Elastic IPs
-- **Access**: SSH restricted to admin IP, application port internal-only  
+- **Access**: SSH secured by key-based authentication, application port internal-only  
 - **Encryption**: SSL/TLS for all traffic, encrypted storage volumes
 - **Authentication**: JWT-based API authentication (when implemented)
 

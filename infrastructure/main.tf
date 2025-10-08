@@ -101,13 +101,13 @@ resource "aws_security_group" "ornakala_web" {
     description = "HTTPS access for secure API communication"
   }
 
-  # SSH - Restricted to specific IP range for administration
+  # SSH - Key-based authentication from anywhere (operational flexibility)
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.allowed_ssh_cidr]
-    description = "SSH access restricted to admin IP range"
+    description = "SSH access secured by key-based authentication"
   }
 
   # Application port (internal communication only)
