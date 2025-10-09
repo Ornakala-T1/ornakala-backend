@@ -163,54 +163,54 @@ jobs:
           aws configure set default.region "${{ secrets.AWS_REGION }}"
           
           # Create deployment script for SSM
-          cat > ssm-deploy.sh << 'EOF'
-#!/bin/bash
-set -e
-
-echo "🚀 Starting SSM deployment to development server..."
-
-# Navigate to application directory
-cd /home/ubuntu/ornakala-backend || {
-  echo "Creating ornakala-backend directory..."
-  mkdir -p /home/ubuntu/ornakala-backend
-  cd /home/ubuntu/ornakala-backend
-}
-
-# Stop existing main.py process if running
-echo "🛑 Stopping existing main.py process..."
-pkill -f "python.*main.py" || echo "No existing main.py process found"
-sleep 2
-
-# Pull latest code (using public access)
-echo "📥 Pulling latest code..."
-if [ -d ".git" ]; then
-  git fetch origin
-  git reset --hard origin/main
-else
-  git clone https://github.com/Ornakala-T1/ornakala-backend.git .
-fi
-
-# Install/update dependencies
-echo "📦 Installing dependencies..."
-python3 -m pip install --user -r requirements.txt
-
-# Start main.py in background
-echo "▶️ Starting main.py..."
-nohup python3 main.py > app.log 2>&1 &
-
-# Wait and verify
-sleep 3
-if pgrep -f "python.*main.py" > /dev/null; then
-  echo "✅ main.py started successfully!"
-  echo "📋 Process ID: $(pgrep -f 'python.*main.py')"
-else
-  echo "❌ Failed to start main.py. Check app.log for errors."
-  tail -20 app.log || echo "No log file found"
-  exit 1
-fi
-
-echo "🎉 SSM deployment completed successfully!"
-EOF
+          cat > ssm-deploy.sh << 'EOFSSM'
+        #!/bin/bash
+        set -e
+        
+        echo "🚀 Starting SSM deployment to development server..."
+        
+        # Navigate to application directory
+        cd /home/ubuntu/ornakala-backend || {
+          echo "Creating ornakala-backend directory..."
+          mkdir -p /home/ubuntu/ornakala-backend
+          cd /home/ubuntu/ornakala-backend
+        }
+        
+        # Stop existing main.py process if running
+        echo "🛑 Stopping existing main.py process..."
+        pkill -f "python.*main.py" || echo "No existing main.py process found"
+        sleep 2
+        
+        # Pull latest code (using public access)
+        echo "📥 Pulling latest code..."
+        if [ -d ".git" ]; then
+          git fetch origin
+          git reset --hard origin/main
+        else
+          git clone https://github.com/Ornakala-T1/ornakala-backend.git .
+        fi
+        
+        # Install/update dependencies
+        echo "📦 Installing dependencies..."
+        python3 -m pip install --user -r requirements.txt
+        
+        # Start main.py in background
+        echo "▶️ Starting main.py..."
+        nohup python3 main.py > app.log 2>&1 &
+        
+        # Wait and verify
+        sleep 3
+        if pgrep -f "python.*main.py" > /dev/null; then
+          echo "✅ main.py started successfully!"
+          echo "📋 Process ID: \$(pgrep -f 'python.*main.py')"
+        else
+          echo "❌ Failed to start main.py. Check app.log for errors."
+          tail -20 app.log || echo "No log file found"
+          exit 1
+        fi
+        
+        echo "🎉 SSM deployment completed successfully!"
+        EOFSSM
 
           # Get instance ID from dev host IP
           INSTANCE_ID=$(aws ec2 describe-instances \
@@ -295,7 +295,7 @@ EOF
         fi
         
         # Create deployment script inline
-        cat > deploy-dev.sh << 'EOF'
+        cat > deploy-dev.sh << 'EOFDEV'
         #!/bin/bash
         set -e
         
@@ -334,7 +334,7 @@ EOF
         sleep 3
         if pgrep -f "python.*main.py" > /dev/null; then
           echo "✅ main.py started successfully!"
-          echo "📋 Process ID: $(pgrep -f 'python.*main.py')"
+          echo "📋 Process ID: \$(pgrep -f 'python.*main.py')"
         else
           echo "❌ Failed to start main.py. Check app.log for errors."
           tail -20 app.log
@@ -342,7 +342,7 @@ EOF
         fi
         
         echo "🎉 Deployment completed successfully!"
-        EOF
+        EOFDEV
         
         # Copy deployment script with timeout
         echo "📤 Copying deployment script..."
@@ -455,7 +455,7 @@ EOF
         chmod 600 private_key.pem
         
         # Create production deployment script
-        cat > deploy-prod.sh << 'EOF'
+        cat > deploy-prod.sh << 'EOFPROD'
         #!/bin/bash
         set -e
         
@@ -494,7 +494,7 @@ EOF
         sleep 5
         if pgrep -f "python.*main.py" > /dev/null; then
           echo "✅ main.py started successfully!"
-          echo "📋 Process ID: $(pgrep -f 'python.*main.py')"
+          echo "📋 Process ID: \$(pgrep -f 'python.*main.py')"
         else
           echo "❌ Failed to start main.py. Check app.log for errors."
           tail -20 app.log
@@ -502,7 +502,7 @@ EOF
         fi
         
         echo "🎉 Production deployment completed successfully!"
-        EOF
+        EOFPROD
         
         # Copy and execute deployment script
         scp -i private_key.pem -o StrictHostKeyChecking=no \
