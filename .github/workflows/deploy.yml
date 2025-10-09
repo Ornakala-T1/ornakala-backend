@@ -77,7 +77,7 @@ jobs:
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🚀 Deploy to Development"
-    if: always() && (needs.test-and-quality.result == 'success')
+    if: always()
     environment: 
       name: development
       url: https://be-de.ornakala.com
@@ -91,6 +91,13 @@ jobs:
         echo "Branch: ${{ github.ref_name }}"
         echo "Environment Input: ${{ github.event.inputs.environment }}"
         echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
+        
+        # Check if tests passed first
+        if [[ "${{ needs.test-and-quality.result }}" != "success" ]]; then
+          echo "❌ Tests failed - skipping deployment"
+          echo "SHOULD_DEPLOY=false" >> $GITHUB_ENV
+          exit 0
+        fi
         
         # Check if we should actually deploy
         SHOULD_DEPLOY=false
@@ -373,7 +380,7 @@ EOF
         echo "🚨 Automated deployment failed!"
         echo ""
         echo "📋 Manual deployment steps:"
-        echo "1. SSH to server: ssh -i ornakala-keypair-fixed.pem ubuntu@${{ secrets.EC2_DEV_HOST }}"
+        echo "1. SSH to server: ssh -i \"ornakala-keypair-fixed.pem\" ubuntu@ec2-3-143-178-63.us-east-2.compute.amazonaws.com"
         echo "2. Navigate to app: cd ~/ornakala-backend"
         echo "3. Pull latest code: git pull origin main"
         echo "4. Stop existing process: pkill -f 'python.*main.py'"
@@ -388,7 +395,7 @@ EOF
     needs: [test-and-quality, check-deployment-trigger]
     runs-on: ubuntu-latest
     name: "🎯 Deploy to Production"
-    if: always() && (needs.test-and-quality.result == 'success')
+    if: always()
     environment: 
       name: production
       url: https://be-pr.ornakala.com
@@ -400,6 +407,13 @@ EOF
         echo "Event Name: ${{ github.event_name }}"
         echo "Environment Input: ${{ github.event.inputs.environment }}"
         echo "Test Quality Result: ${{ needs.test-and-quality.result }}"
+        
+        # Check if tests passed first
+        if [[ "${{ needs.test-and-quality.result }}" != "success" ]]; then
+          echo "❌ Tests failed - skipping production deployment"
+          echo "SHOULD_DEPLOY=false" >> $GITHUB_ENV
+          exit 0
+        fi
         
         # Check if we should actually deploy to production
         SHOULD_DEPLOY=false
