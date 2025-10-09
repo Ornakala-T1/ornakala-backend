@@ -357,6 +357,7 @@ jobs:
           'chmod +x deploy-dev.sh && timeout 300 ./deploy-dev.sh'
 
     - name: Verify Deployment
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         # Wait a bit for the service to fully start
         sleep 5
@@ -368,6 +369,7 @@ jobs:
           'pgrep -f "python.*main.py" && echo "✅ main.py is running" || echo "❌ main.py is not running"'
 
     - name: Notify Development Deployment
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         echo "✅ Development deployment completed!"
         echo "🔗 Test your changes at: https://be-de.ornakala.com"
@@ -515,6 +517,7 @@ jobs:
           'chmod +x deploy-prod.sh && ./deploy-prod.sh'
 
     - name: Verify Production Deployment
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         # Wait for service to fully start
         sleep 5
@@ -526,6 +529,7 @@ jobs:
           'pgrep -f "python.*main.py" && echo "✅ main.py is running" || echo "❌ main.py is not running"'
 
     - name: Notify Production Deployment
+      if: env.SHOULD_DEPLOY == 'true'
       run: |
         echo "🎉 Production deployment completed successfully!"
         echo "🌐 Live at: https://be-pr.ornakala.com"
