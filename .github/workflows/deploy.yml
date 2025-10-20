@@ -49,31 +49,8 @@ jobs:
       
     - name: Run Type Check
       run: |
-        # Use python to find and check files with mypy
-        python -c "
-        import glob
-        import subprocess
-        import sys
-        
-        # Get all Python files excluding tests, .git, and venv
-        main_files = [f for f in glob.glob('**/*.py', recursive=True) 
-                     if not any(x in f for x in ['/tests/', '/.git/', '/venv/'])]
-        test_files = glob.glob('tests/**/*.py', recursive=True)
-        
-        # Run mypy on main files
-        if main_files:
-            ret1 = subprocess.run(['mypy'] + main_files).returncode
-        else:
-            ret1 = 0
-            
-        # Run mypy on test files
-        if test_files:
-            ret2 = subprocess.run(['mypy'] + test_files).returncode
-        else:
-            ret2 = 0
-            
-        sys.exit(ret1 or ret2)
-        "
+        # Run mypy directly on main.py and tests directory
+        python -m mypy main.py tests/
 
   # Stage 2: Always show deployment stage (but conditionally execute)
   check-deployment-trigger:
