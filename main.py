@@ -20,7 +20,7 @@ def get_app_info() -> dict[str, str]:
         "name": "Ornakala Backend",
         "version": __version__,
         "description": "Backend service for Ornakala's customer platform",
-        "status": "development",
+        "status": "Test",
     }
 
 
