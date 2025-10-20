@@ -22,14 +22,12 @@ on:
         - prod
 
 jobs:
-  # Stage 1: Run tests and SonarQube check on all PRs and main branch pushes
+  # Stage 1: Run tests, lint, and type checking on all PRs and main branch pushes
   test-and-quality:
     runs-on: ubuntu-latest
-    name: "🧪 Tests & Quality Gate"
+    name: "🧪 Tests, Lint & Type Check"
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -45,13 +43,12 @@ jobs:
     - name: Run tests
       run: |
         python -m pytest tests/ -v --cov=. --cov-report=xml
-
-    - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      continue-on-error: true  # Don't fail if SonarQube is not configured
+        
+    - name: Run Lint
+      run: ruff check .
+      
+    - name: Run Type Check
+      run: mypy .
 
   # Stage 2: Always show deployment stage (but conditionally execute)
   check-deployment-trigger:
