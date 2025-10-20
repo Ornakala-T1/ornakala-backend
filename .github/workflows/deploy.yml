@@ -48,7 +48,11 @@ jobs:
       run: ruff check .
       
     - name: Run Type Check
-      run: mypy .
+      run: |
+        # Run mypy on Python files, excluding tests directory initially
+        find . -name "*.py" -not -path "./tests/*" -not -path "./.git/*" -not -path "./venv/*" -exec mypy {} +
+        # Run mypy on test files separately
+        find ./tests -name "*.py" -exec mypy {} +
 
   # Stage 2: Always show deployment stage (but conditionally execute)
   check-deployment-trigger:
