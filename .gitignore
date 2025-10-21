@@ -258,6 +258,7 @@ terraform.tfvars
 
 app/domain/admin/frontend/node_modules
 app/domain/admin/frontend/.next
+*.rar
 
 
 
