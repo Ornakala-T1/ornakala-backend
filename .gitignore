@@ -255,3 +255,9 @@ terraform.tfvars
 
 # Branch protection setup file (generated docs)
 *BRANCH_PROTECTION_SETUP.md
+
+app/domain/admin/frontend/node_modules
+app/domain/admin/frontend/.next
+
+
+
