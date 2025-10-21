@@ -1,0 +1,116 @@
+Ornakala Admin Platform - Local Setup Guide
+=================================================
+
+1️⃣ Install Required Tools
+--------------------------
+Node.js >= 18.x
+npm >= 10.x
+PostgreSQL >= 15.x
+Git (optional)
+VS Code (optional)
+
+-------------------------------------------------
+
+2️⃣ Database Setup (PostgreSQL)
+-------------------------------
+1. Open PostgreSQL shell and run:
+
+CREATE DATABASE ornakala_db;
+CREATE USER postgres WITH PASSWORD 'ornakala';
+GRANT ALL PRIVILEGES ON DATABASE ornakala_db TO postgres;
+
+If postgres user exists:
+ALTER USER postgres WITH PASSWORD 'ornakala';
+
+2. Verify connection:
+psql -U postgres -d ornakala_db
+
+-------------------------------------------------
+
+3️⃣ Backend Setup (NestJS + Prisma)
+-----------------------------------
+cd app/domain/admin/backend
+
+Create .env file:
+
+DATABASE_URL="postgresql://postgres:ornakala@localhost:5432/ornakala_db"
+JWT_SECRET="your-super-secret-jwt-key-here"
+JWT_EXPIRES_IN="1h"
+PORT=3001
+NODE_ENV="development"
+FRONTEND_URL="http://localhost:3000"
+
+Install dependencies:
+npm install --force
+
+Generate Prisma client:
+npm run prisma:generate
+
+Run migrations:
+npm run prisma:migrate
+# When asked, type: init
+
+Start backend:
+npm run start:dev
+
+Verify backend:
+http://localhost:3001/health
+Should return:
+{"status":"ok","service":"Ornakala Admin API","version":"1.0.0"}
+
+-------------------------------------------------
+
+4️⃣ Frontend Setup (Next.js)
+----------------------------
+cd app/domain/admin/frontend
+
+Create .env.local file:
+NEXT_PUBLIC_API_URL=http://localhost:3001
+
+Install dependencies:
+npm install
+
+Run frontend:
+npm run dev
+
+Access app:
+http://localhost:3000
+
+-------------------------------------------------
+
+5️⃣ Login Info
+--------------
+Email: admin@ornakala.com
+Password: admin123
+
+If login error:
+Ensure .env.local uses NEXT_PUBLIC_API_URL=http://localhost:3001
+
+-------------------------------------------------
+
+6️⃣ Dynamic Database Test
+-------------------------
+1. Create new form from dashboard
+2. Click Publish
+3. Check PostgreSQL tables:
+\dt
+
+A new table like form_<formkey> will appear automatically.
+
+-------------------------------------------------
+
+✅ Summary of Commands
+----------------------
+# Backend
+cd app/domain/admin/backend
+npm install --force
+npm run prisma:generate
+npm run prisma:migrate
+npm run start:dev
+
+# Frontend
+cd app/domain/admin/frontend
+npm install
+npm run dev
+
+-------------------------------------------------

@@ -1,0 +1,253 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core User Management
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  status        UserStatus @default(ACTIVE)
+  passwordHash  String   @map("password_hash")
+  mfaSecret     String?  @map("mfa_secret")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userRoles     UserRole[]
+  createdForms  Form[]    @relation("FormCreator")
+  auditLogs     AuditLog[] @relation("AuditActor")
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id           String       @id @default(uuid())
+  resourceType ResourceType @map("resource_type")
+  action       Action
+  resourceId   String?      @map("resource_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+enum ResourceType {
+  SYSTEM
+  FORM
+  TABLE
+}
+
+enum Action {
+  VIEW
+  EDIT
+  MANAGE
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// Form Builder & Schema Registry
+model Form {
+  id             String     @id @default(uuid())
+  name           String
+  key            String     @unique
+  status         FormStatus @default(DRAFT)
+  currentVersion Int        @default(0) @map("current_version")
+  createdBy      String     @map("created_by")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  creator     User          @relation("FormCreator", fields: [createdBy], references: [id])
+  versions    FormVersion[]
+  tableAlias  TableAlias?
+  tableSettings TableSetting[]
+
+  @@map("forms")
+}
+
+enum FormStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model FormVersion {
+  id              String   @id @default(uuid())
+  formId          String   @map("form_id")
+  version         Int
+  displayName     String   @map("display_name")
+  description     String?
+  validationPreset String? @map("validation_preset")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  form   Form        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  fields FormField[]
+
+  @@unique([formId, version])
+  @@map("form_versions")
+}
+
+model FormField {
+  id            String      @id @default(uuid())
+  formVersionId String      @map("form_version_id")
+  name          String
+  key           String
+  type          FieldType
+  required      Boolean     @default(false)
+  unique        Boolean     @default(false)
+  defaultValue  String?    @map("default_value")
+  minLength     Int?       @map("min_length")
+  maxLength     Int?       @map("max_length")
+  minValue      Decimal?   @map("min_value") @db.Decimal(10, 2)
+  maxValue      Decimal?   @map("max_value") @db.Decimal(10, 2)
+  regex         String?
+  enumOptions   String[]   @map("enum_options")
+  relation      Json?
+  ui            Json?
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([formVersionId, key])
+  @@map("form_fields")
+}
+
+enum FieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  DECIMAL
+  BOOLEAN
+  DATE
+  DATETIME
+  EMAIL
+  PHONE
+  ENUM
+  JSON
+  FILE_REF
+  RELATION
+}
+
+model SchemaRegistry {
+  id            String   @id @default(uuid())
+  formId        String   @map("form_id")
+  version       Int
+  tableName     String   @map("table_name")
+  ddl           String
+  migratedFrom  String?  @map("migrated_from")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([formId, version])
+  @@map("schema_registry")
+}
+
+model TableAlias {
+  id           String  @id @default(uuid())
+  formId       String  @unique @map("form_id")
+  activeTable  String  @map("active_table")
+  viewName     String? @map("view_name")
+
+  // Relations
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@map("table_aliases")
+}
+
+// Auditing & Settings
+model AuditLog {
+  id           String   @id @default(uuid())
+  timestamp    DateTime @default(now())
+  actorUserId  String   @map("actor_user_id")
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  metadata     Json?
+  ip           String?
+  userAgent    String?  @map("user_agent")
+
+  // Relations
+  actor User @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model TableSetting {
+  id                String  @id @default(uuid())
+  formId            String  @unique @map("form_id")
+  defaultSort       Json?   @map("default_sort")
+  columnVisibility  Json?   @map("column_visibility")
+  rowLevelFilter    Json?   @map("row_level_filter")
+
+  // Relations
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@map("table_settings")
+}
+
+// API Tokens (optional for CLI/automation)
+model ApiToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  scopes    String[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("api_tokens")
+}
