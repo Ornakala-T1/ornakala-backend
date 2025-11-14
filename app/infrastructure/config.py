@@ -56,7 +56,8 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, v):
         if v == "your-secret-key-change-in-production":
             if os.getenv("ENVIRONMENT") == "production":
-                raise ValueError("Secret key must be changed in production")\n        return v
+                raise ValueError("Secret key must be changed in production")
+        return v
     
     @validator("ALLOWED_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
