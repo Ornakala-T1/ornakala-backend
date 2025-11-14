@@ -84,6 +84,8 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
+# Deployment trigger comment - SSH connection fixed
+
 def main() -> None:
     """Main application entry point."""
     logger.info(f"Starting Ornakala Backend v{__version__}")
