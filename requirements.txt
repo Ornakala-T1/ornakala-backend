@@ -16,7 +16,6 @@ bcrypt==4.1.2
 python-multipart==0.0.6
 
 # Validation
-pydantic==2.5.0
 pydantic[email]==2.5.0
 
 # Environment management
@@ -26,8 +25,7 @@ python-dotenv==1.0.0
 httpx==0.25.0
 requests==2.31.0
 
-# Data validation
-pydantic==2.4.2
+# Optional extras
 pydantic-settings==2.0.3
 
 # Async support
