@@ -37,10 +37,40 @@ jobs:
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
         
-        # Simple SSH deployment
+        # Deploy FastAPI application
         ssh -i private_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} << 'EOF'
-          cd /home/ubuntu/ornakala-backend
-          git pull origin main
+          cd /home/ubuntu/ornakala-backend || { echo "Creating ornakala-backend directory..."; mkdir -p /home/ubuntu/ornakala-backend; cd /home/ubuntu/ornakala-backend; }
+          
+          # Pull latest code
+          if [ -d ".git" ]; then
+            git pull origin main
+          else
+            git clone https://github.com/Ornakala-T1/ornakala-backend.git .
+          fi
+          
+          # Setup Python environment
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user -r requirements.txt
+          
+          # Stop existing processes
           pkill -f "python.*main.py" || true
+          pkill -f "uvicorn.*main:app" || true
+          
+          # Setup environment file
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+          
+          # Start the FastAPI application
           nohup python3 main.py > app.log 2>&1 &
+          
+          # Wait and verify
+          sleep 5
+          if pgrep -f "python.*main.py\|uvicorn.*main:app" > /dev/null; then
+            echo "✅ Application started successfully!"
+          else
+            echo "❌ Failed to start application. Check logs:"
+            tail -20 app.log
+            exit 1
+          fi
         EOF
