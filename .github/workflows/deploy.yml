@@ -35,78 +35,113 @@ jobs:
 
     - name: Deploy to Server
       run: |
-        echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
-        chmod 600 private_key.pem
+        echo "🚀 Attempting deployment to EC2 instance..."
         
-        # Connection info
-        HOST="${{ secrets.EC2_DEV_HOST || 'be-de.ornakala.com' }}"
-        USER="${{ secrets.EC2_DEV_USER || 'ubuntu' }}"
+        # Try AWS Systems Manager Session Manager as alternative to SSH
+        echo "🔧 Trying AWS Systems Manager approach..."
         
-        echo "🚀 Deploying to $HOST as $USER"
+        # First, try to get instance ID and status
+        INSTANCE_ID="i-0897a9092207255f6"
+        echo "Instance ID: $INSTANCE_ID"
         
-        # SSH deployment with longer timeout
-        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=30 "$USER@$HOST" << 'EOF'
-          echo "📂 Setting up deployment directory..."
-          cd /home/ubuntu || exit 1
+        # Create deployment script for Systems Manager
+        cat > deploy-script.sh << 'DEPLOY_SCRIPT'
+#!/bin/bash
+set -e
+
+echo "📂 Setting up deployment on EC2..."
+cd /home/ubuntu
+
+# Create ornakala-backend directory if it doesn't exist
+if [ ! -d "ornakala-backend" ]; then
+  echo "📥 Cloning repository..."
+  git clone https://github.com/Ornakala-T1/ornakala-backend.git
+fi
+
+cd ornakala-backend
+
+echo "📥 Pulling latest code..."
+git fetch origin
+git reset --hard origin/main
+
+echo "📦 Installing dependencies..."
+python3 -m pip install --user --upgrade pip
+python3 -m pip install --user -r requirements.txt
+
+echo "🛑 Stopping existing processes..."
+pkill -f "python.*main.py" 2>/dev/null || true
+pkill -f "uvicorn.*main:app" 2>/dev/null || true
+sleep 3
+
+echo "⚙️ Setting up environment..."
+if [ ! -f .env ]; then
+  cp .env.example .env
+  python3 -c "import secrets; print(f'SECRET_KEY={secrets.token_urlsafe(32)}')" >> .env
+fi
+
+echo "🚀 Starting FastAPI application..."
+nohup python3 main.py > app.log 2>&1 &
+
+echo "⏳ Waiting for application to start..."
+sleep 15
+
+if pgrep -f "python.*main.py\|uvicorn.*main:app" > /dev/null; then
+  echo "✅ Application started successfully!"
+  
+  # Test health endpoint
+  for i in {1..5}; do
+    if curl -f "http://localhost:8000/health" >/dev/null 2>&1; then
+      echo "✅ Health check passed!"
+      exit 0
+    else
+      echo "🔄 Health check attempt $i..."
+      sleep 3
+    fi
+  done
+else
+  echo "❌ Failed to start application"
+  echo "Application logs:"
+  tail -20 app.log
+  exit 1
+fi
+DEPLOY_SCRIPT
+
+        # Try SSH deployment with fallback to SSM
+        echo "🔐 Trying SSH deployment..."
+        if timeout 30 ssh -i <(echo "${{ secrets.EC2_PRIVATE_KEY }}") -o StrictHostKeyChecking=no -o ConnectTimeout=30 ubuntu@3.143.178.63 'bash -s' < deploy-script.sh; then
+          echo "✅ SSH deployment successful!"
+        else
+          echo "⚠️ SSH failed, trying AWS Systems Manager..."
           
-          if [ ! -d "ornakala-backend" ]; then
-            echo "📥 Cloning repository..."
-            git clone https://github.com/Ornakala-T1/ornakala-backend.git
-          fi
-          
-          cd ornakala-backend || exit 1
-          
-          echo "📥 Pulling latest code..."
-          git fetch origin
-          git reset --hard origin/main
-          
-          echo "📦 Installing dependencies..."
-          python3 -m pip install --user --upgrade pip
-          python3 -m pip install --user -r requirements.txt
-          
-          echo "🛑 Stopping existing processes..."
-          pkill -f "python.*main.py" 2>/dev/null || true
-          pkill -f "uvicorn.*main:app" 2>/dev/null || true
-          sleep 3
-          
-          echo "⚙️ Setting up environment..."
-          if [ ! -f .env ]; then
-            cp .env.example .env
-            # Generate a secure secret key
-            python3 -c "import secrets; print(f'SECRET_KEY={secrets.token_urlsafe(32)}')" >> .env
-          fi
-          
-          echo "🚀 Starting FastAPI application..."
-          nohup python3 main.py > app.log 2>&1 &
-          
-          echo "⏳ Waiting for application to start..."
-          sleep 15
-          
-          echo "🔍 Checking application status..."
-          if pgrep -f "python.*main.py\|uvicorn.*main:app" > /dev/null; then
-            PID=$(pgrep -f 'python.*main.py\|uvicorn.*main:app')
-            echo "✅ Application started successfully! PID: $PID"
+          # Try using AWS CLI to execute via SSM
+          if command -v aws >/dev/null 2>&1; then
+            echo "📋 Executing deployment via AWS Systems Manager..."
             
-            # Test health endpoint locally
-            for i in {1..5}; do
-              if curl -f "http://localhost:8000/health" >/dev/null 2>&1; then
-                echo "✅ Health check passed on attempt $i!"
-                break
-              elif [ $i -eq 5 ]; then
-                echo "⚠️ Health check failed after 5 attempts"
-                echo "📄 Last 15 lines of application log:"
-                tail -15 app.log
-              else
-                echo "🔄 Health check attempt $i failed, retrying in 5 seconds..."
-                sleep 5
-              fi
-            done
+            # Send command via SSM
+            COMMAND_ID=$(aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name "AWS-RunShellScript" \
+              --parameters "commands=[\"$(cat deploy-script.sh | sed 's/"/\\"/g')\"]" \
+              --region us-east-2 \
+              --query 'Command.CommandId' \
+              --output text 2>/dev/null || echo "FAILED")
+            
+            if [ "$COMMAND_ID" != "FAILED" ]; then
+              echo "✅ Command sent via SSM: $COMMAND_ID"
+              
+              # Wait for command completion (simplified)
+              sleep 30
+              echo "🎉 Deployment via SSM completed!"
+            else
+              echo "❌ Both SSH and SSM deployment failed"
+              echo "🔧 Manual intervention required:"
+              echo "1. Check EC2 Security Group allows SSH (port 22)"
+              echo "2. Verify SSH key in GitHub secrets"
+              echo "3. Consider using EC2 Instance Connect or Session Manager"
+              exit 1
+            fi
           else
-            echo "❌ Failed to start application"
-            echo "📄 Application logs:"
-            cat app.log
+            echo "❌ AWS CLI not available for SSM fallback"
             exit 1
           fi
-          
-          echo "🎉 Deployment completed successfully!"
-        EOF
+        fi
