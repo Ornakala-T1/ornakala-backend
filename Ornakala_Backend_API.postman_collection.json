@@ -29,6 +29,24 @@
 					"response": []
 				},
 				{
+					"name": "Health Check (Direct IP)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_ip}}/health",
+							"host": [
+								"{{base_url_ip}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if the API is running and healthy using direct IP (fallback option)"
+					},
+					"response": []
+				},
+				{
 					"name": "API Info",
 					"request": {
 						"method": "GET",
@@ -484,8 +502,10 @@
 				"exec": [
 					"// Set base URL if not already set",
 					"if (!pm.environment.get('base_url')) {",
-					"    pm.environment.set('base_url', 'http://3.143.178.63:8000');",
-					"}"
+					"    pm.environment.set('base_url', 'http://be-de.ornakala.com');",
+					"}",
+					"// Set request timeout to 30 seconds",
+					"pm.request.timeout = 30000;"
 				]
 			}
 		},

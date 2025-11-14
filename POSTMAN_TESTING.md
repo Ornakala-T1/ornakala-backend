@@ -153,9 +153,12 @@ Try these scenarios to test error handling:
 
 ### Common Issues:
 
-1. **"Server not responding"**:
-   - Check if API is running: http://3.143.178.63:8000/health
-   - Verify `base_url` in environment
+1. **"Request timeout" or "Server not responding"**:
+   - **Domain DNS issues**: Try using the "Health Check (Direct IP)" request instead
+   - **Proxy settings**: Check Postman proxy settings (Settings → Proxy)
+   - **Firewall**: Ensure your firewall allows Postman network access
+   - **Network**: Try switching networks or disabling VPN
+   - **Alternative**: Use `{{base_url_ip}}` instead of `{{base_url}}` in requests
 
 2. **"Unauthorized" errors**:
    - Run login again to refresh tokens
@@ -164,6 +167,29 @@ Try these scenarios to test error handling:
 3. **"Validation errors"**:
    - Verify request body format
    - Check required fields in API documentation
+
+### DNS Resolution Issues:
+
+If the domain `be-de.ornakala.com` doesn't resolve in Postman:
+
+1. **Use Direct IP**: Switch to `{{base_url_ip}}` (http://3.143.178.63)
+2. **Check DNS**: Verify domain resolves on your system: `nslookup be-de.ornakala.com`
+3. **Postman Settings**: Go to Settings → General → Request timeout and increase it
+4. **Proxy Settings**: Disable proxy in Postman if enabled
+
+### Alternative Base URLs:
+
+The environment includes both options:
+- `{{base_url}}`: http://be-de.ornakala.com (primary)
+- `{{base_url_ip}}`: http://3.143.178.63 (fallback)
+
+### Network Testing:
+
+Test connectivity outside Postman:
+```bash
+curl --location 'http://be-de.ornakala.com/health'
+curl --location 'http://3.143.178.63/health'
+```
 
 ### Getting Help
 
