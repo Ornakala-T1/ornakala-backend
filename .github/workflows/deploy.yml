@@ -38,40 +38,75 @@ jobs:
         echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key.pem
         chmod 600 private_key.pem
         
-        # Deploy FastAPI application
-        ssh -i private_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_DEV_USER }}@${{ secrets.EC2_DEV_HOST }} << 'EOF'
-          cd /home/ubuntu/ornakala-backend || { echo "Creating ornakala-backend directory..."; mkdir -p /home/ubuntu/ornakala-backend; cd /home/ubuntu/ornakala-backend; }
+        # Connection info
+        HOST="${{ secrets.EC2_DEV_HOST || 'be-de.ornakala.com' }}"
+        USER="${{ secrets.EC2_DEV_USER || 'ubuntu' }}"
+        
+        echo "🚀 Deploying to $HOST as $USER"
+        
+        # SSH deployment with longer timeout
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=30 "$USER@$HOST" << 'EOF'
+          echo "📂 Setting up deployment directory..."
+          cd /home/ubuntu || exit 1
           
-          # Pull latest code
-          if [ -d ".git" ]; then
-            git pull origin main
-          else
-            git clone https://github.com/Ornakala-T1/ornakala-backend.git .
+          if [ ! -d "ornakala-backend" ]; then
+            echo "📥 Cloning repository..."
+            git clone https://github.com/Ornakala-T1/ornakala-backend.git
           fi
           
-          # Setup Python environment
+          cd ornakala-backend || exit 1
+          
+          echo "📥 Pulling latest code..."
+          git fetch origin
+          git reset --hard origin/main
+          
+          echo "📦 Installing dependencies..."
           python3 -m pip install --user --upgrade pip
           python3 -m pip install --user -r requirements.txt
           
-          # Stop existing processes
-          pkill -f "python.*main.py" || true
-          pkill -f "uvicorn.*main:app" || true
+          echo "🛑 Stopping existing processes..."
+          pkill -f "python.*main.py" 2>/dev/null || true
+          pkill -f "uvicorn.*main:app" 2>/dev/null || true
+          sleep 3
           
-          # Setup environment file
+          echo "⚙️ Setting up environment..."
           if [ ! -f .env ]; then
             cp .env.example .env
+            # Generate a secure secret key
+            python3 -c "import secrets; print(f'SECRET_KEY={secrets.token_urlsafe(32)}')" >> .env
           fi
           
-          # Start the FastAPI application
+          echo "🚀 Starting FastAPI application..."
           nohup python3 main.py > app.log 2>&1 &
           
-          # Wait and verify
-          sleep 5
+          echo "⏳ Waiting for application to start..."
+          sleep 15
+          
+          echo "🔍 Checking application status..."
           if pgrep -f "python.*main.py\|uvicorn.*main:app" > /dev/null; then
-            echo "✅ Application started successfully!"
+            PID=$(pgrep -f 'python.*main.py\|uvicorn.*main:app')
+            echo "✅ Application started successfully! PID: $PID"
+            
+            # Test health endpoint locally
+            for i in {1..5}; do
+              if curl -f "http://localhost:8000/health" >/dev/null 2>&1; then
+                echo "✅ Health check passed on attempt $i!"
+                break
+              elif [ $i -eq 5 ]; then
+                echo "⚠️ Health check failed after 5 attempts"
+                echo "📄 Last 15 lines of application log:"
+                tail -15 app.log
+              else
+                echo "🔄 Health check attempt $i failed, retrying in 5 seconds..."
+                sleep 5
+              fi
+            done
           else
-            echo "❌ Failed to start application. Check logs:"
-            tail -20 app.log
+            echo "❌ Failed to start application"
+            echo "📄 Application logs:"
+            cat app.log
             exit 1
           fi
+          
+          echo "🎉 Deployment completed successfully!"
         EOF
