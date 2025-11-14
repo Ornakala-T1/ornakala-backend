@@ -1,0 +1,3 @@
+"""
+User management domain package.
+"""
