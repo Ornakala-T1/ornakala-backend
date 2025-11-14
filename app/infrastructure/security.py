@@ -6,7 +6,7 @@ JWT token management, and other cryptographic operations.
 """
 
 import bcrypt
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from app.infrastructure.config import settings
