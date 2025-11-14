@@ -295,10 +295,10 @@ output "name_servers" {
 
 output "dev_url" {
   description = "Development URL"
-  value       = "https://be-de.${var.domain_name}"
+  value       = "http://be-de.${var.domain_name}"
 }
 
 output "prod_url" {
   description = "Production URL"
-  value       = "https://be-pr.${var.domain_name}"
+  value       = "http://be-pr.${var.domain_name}"
 }

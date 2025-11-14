@@ -37,9 +37,9 @@ sleep 30
 # Health check
 echo "🔍 Performing health check..."
 if [ "$ENVIRONMENT" = "prod" ]; then
-    HEALTH_URL="https://be-pr.ornakala.com/health"
+    HEALTH_URL="http://be-pr.ornakala.com/health"
 else
-    HEALTH_URL="https://be-de.ornakala.com/health"
+    HEALTH_URL="http://be-de.ornakala.com/health"
 fi
 
 for i in {1..10}; do
