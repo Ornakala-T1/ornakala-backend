@@ -63,8 +63,15 @@ class Settings(BaseSettings):
     @validator("ALLOWED_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
+            if v == "*":
+                return ["*"]
             return [origin.strip() for origin in v.split(",")]
         return v
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Get CORS origins as a list for FastAPI CORSMiddleware"""
+        return self.ALLOWED_ORIGINS
     
     class Config:
         env_file = ".env"
