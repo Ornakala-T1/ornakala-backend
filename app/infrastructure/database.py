@@ -85,6 +85,7 @@ class UserModel(Base):
     last_login = Column(DateTime, nullable=True)
 
 
+
 class DatabaseManager:
     """Database lifecycle management."""
     
@@ -116,3 +117,27 @@ async def get_db_session() -> AsyncSession:
             raise
         finally:
             await session.close()
+
+
+class UserKYCModel(Base):
+    __tablename__ = "user_kyc"
+
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False)
+    user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+
+    legal_name = Column(String(255), nullable=False)
+    document_type = Column(String(50), nullable=False)
+    document_number = Column(String(128), nullable=False)
+
+    dob = Column(Date, nullable=True)
+    address = Column(Text, nullable=True)
+    country = Column(String(2), nullable=True)
+
+    status = Column(String(32), nullable=False, default="pending")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_kyc_user_id"),
+    )

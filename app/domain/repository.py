@@ -64,6 +64,26 @@ class UserRepository(ABC):
         """Check if a user exists with the given email."""
         pass
 
+class UserKYCRepository(Protocol):
+    async def add(self, kyc: UserKYC) -> None:
+        """Persist a new KYC record."""
+        raise NotImplementedError("add() must be implemented by concrete repository")
+
+    async def get_by_user_id(self, user_id: UUID) -> Optional[UserKYC]:
+        """Retrieve KYC by the owning user's ID."""
+        raise NotImplementedError("get_by_user_id() must be implemented by concrete repository")
+
+    async def update(self, kyc: UserKYC) -> None:
+        """Update an existing KYC record."""
+        raise NotImplementedError("update() must be implemented by concrete repository")
+
+    async def delete_by_user_id(self, user_id: UUID) -> None:
+        """Delete a user's KYC record."""
+        raise NotImplementedError("delete_by_user_id() must be implemented by concrete repository")
+
+    async def exists_by_user_id(self, user_id: UUID) -> bool:
+        """Check if a user already has a KYC record."""
+        raise NotImplementedError("exists_by_user_id() must be implemented by concrete repository")
 
 class UnitOfWork(ABC):
     """

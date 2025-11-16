@@ -137,3 +137,18 @@ class PasswordResetToken:
     def mark_as_used(self) -> None:
         """Mark the token as used."""
         self.is_used = True
+
+
+@dataclass
+class UserKYC:
+    id: UUID
+    user_id: UUID
+    legal_name: str
+    document_type: str
+    document_number: str
+    dob: Optional[date] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
+    status: str = "pending"
+    created_at: datetime = None
+    updated_at: datetime = None

@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.api.routes import auth_router
+from app.api.routes.kyc import router as kyc_router
 from app.infrastructure.database import DatabaseManager
 from app.infrastructure.config import Settings
 import logging
@@ -56,7 +57,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
+    app.include_router(kyc_router, prefix="/api/v1/kyc", tags=["KYC"])
     # Include routers
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 

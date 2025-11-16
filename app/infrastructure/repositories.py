@@ -134,3 +134,74 @@ class SQLAlchemyUserRepository(UserRepository):
             updated_at=db_user.updated_at,
             last_login=db_user.last_login
         )
+
+class SQLAlchemyUserKYCRepository(UserKYCRepository):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def add(self, kyc: UserKYC) -> None:
+        db = self._to_db_model(kyc)
+        self.session.add(db)
+        await self.session.flush()
+
+    async def get_by_user_id(self, user_id: UUID) -> Optional[UserKYC]:
+        stmt = select(UserKYCModel).where(UserKYCModel.user_id == user_id)
+        res = await self.session.execute(stmt)
+        db = res.scalar_one_or_none()
+        return self._to_domain_model(db) if db else None
+
+    async def update(self, kyc: UserKYC) -> None:
+        stmt = (
+            update(UserKYCModel)
+            .where(UserKYCModel.user_id == kyc.user_id)
+            .values(
+                legal_name=kyc.legal_name,
+                document_type=kyc.document_type,
+                document_number=kyc.document_number,
+                dob=kyc.dob,
+                address=kyc.address,
+                country=kyc.country,
+                status=kyc.status,
+                updated_at=datetime.utcnow(),
+            )
+        )
+        await self.session.execute(stmt)
+
+    async def delete_by_user_id(self, user_id: UUID) -> None:
+        stmt = delete(UserKYCModel).where(UserKYCModel.user_id == user_id)
+        await self.session.execute(stmt)
+
+    async def exists_by_user_id(self, user_id: UUID) -> bool:
+        stmt = select(UserKYCModel.id).where(UserKYCModel.user_id == user_id)
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none() is not None
+
+    def _to_db_model(self, kyc: UserKYC) -> UserKYCModel:
+        return UserKYCModel(
+            id=kyc.id,
+            user_id=kyc.user_id,
+            legal_name=kyc.legal_name,
+            document_type=kyc.document_type,
+            document_number=kyc.document_number,
+            dob=kyc.dob,
+            address=kyc.address,
+            country=kyc.country,
+            status=kyc.status,
+            created_at=kyc.created_at,
+            updated_at=kyc.updated_at,
+        )
+
+    def _to_domain_model(self, db: UserKYCModel) -> UserKYC:
+        return UserKYC(
+            id=db.id,
+            user_id=db.user_id,
+            legal_name=db.legal_name,
+            document_type=db.document_type,
+            document_number=db.document_number,
+            dob=db.dob,
+            address=db.address,
+            country=db.country,
+            status=db.status,
+            created_at=db.created_at,
+            updated_at=db.updated_at,
+        )

@@ -81,3 +81,6 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     success: bool = False
+
+
+
